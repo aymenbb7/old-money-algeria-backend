@@ -13,8 +13,14 @@ def dashboard_orders(request):
 def dashboard_products(request):
     return render(request, 'dashboard/products.html')
 
+def dashboard_categories(request):
+    return render(request, 'dashboard/categories.html')
+
 def dashboard_wilayas(request):
     return render(request, 'dashboard/wilayas.html')
+
+def dashboard_settings(request):
+    return render(request, 'dashboard/settings.html')
 
 def dashboard_customers(request):
     return render(request, 'dashboard/customers.html')

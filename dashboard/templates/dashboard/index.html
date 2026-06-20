@@ -6,80 +6,135 @@
     <p style="color: var(--text-muted);">Welcome back. Here's what's happening today.</p>
 </div>
 
-<div class="grid-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+<!-- TOP CARDS -->
+<div class="grid-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
     <div class="card">
-        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Revenue Today</div>
-        <div class="brand-font" style="font-size: 2rem; color: var(--accent-gold);" id="revToday">0 DZD</div>
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Orders</div>
+        <div class="brand-font" style="font-size: 1.8rem; color: var(--text-main);" id="totOrders">0</div>
     </div>
     <div class="card">
-        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Orders Today</div>
-        <div class="brand-font" style="font-size: 2rem; color: var(--text-main);" id="ordToday">0</div>
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Today's Orders</div>
+        <div class="brand-font" style="font-size: 1.8rem; color: var(--text-main);" id="ordToday">0</div>
+    </div>
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Revenue Today</div>
+        <div class="brand-font" style="font-size: 1.8rem; color: var(--accent-gold);" id="revToday">0 DZD</div>
+    </div>
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Revenue This Month</div>
+        <div class="brand-font" style="font-size: 1.8rem; color: var(--accent-gold);" id="revMonth">0 DZD</div>
     </div>
     <div class="card">
         <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Pending Orders</div>
-        <div class="brand-font" style="font-size: 2rem; color: #ffae42;" id="ordPending">0</div>
+        <div class="brand-font" style="font-size: 1.8rem; color: #ffae42;" id="ordPending">0</div>
     </div>
     <div class="card">
-        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Products</div>
-        <div class="brand-font" style="font-size: 2rem; color: var(--success-green);" id="totProd">0</div>
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Top Wilaya</div>
+        <div class="brand-font" style="font-size: 1.4rem; color: var(--success-green);" id="topWilaya">N/A (0)</div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header">
-        <h3 class="brand-font">Recent Orders</h3>
-        <button class="btn-gold" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">View All</button>
+<!-- CHARTS SECTION -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="card">
+        <h3 class="brand-font" style="margin-bottom: 1rem;">Daily Revenue (Delivered, Last 30 Days)</h3>
+        <canvas id="revenueChart" height="200"></canvas>
     </div>
-    <div style="overflow-x: auto;">
-        <table id="recentOrdersTable">
-            <thead>
-                <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Wilaya</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Populated via JS -->
-            </tbody>
-        </table>
+    <div class="card">
+        <h3 class="brand-font" style="margin-bottom: 1rem;">Daily Orders (Last 30 Days)</h3>
+        <canvas id="ordersChart" height="200"></canvas>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="card">
+        <h3 class="brand-font" style="margin-bottom: 1rem;">Orders by Status</h3>
+        <canvas id="statusChart" height="250"></canvas>
+    </div>
+    <div class="card">
+        <h3 class="brand-font" style="margin-bottom: 1rem;">Top 10 Wilayas</h3>
+        <canvas id="wilayasChart" height="250"></canvas>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
-        // Load Analytics
         const analytics = await apiCall('analytics/');
         if (analytics) {
-            document.getElementById('revToday').innerText = `${parseFloat(analytics.revenue_today).toFixed(2)} DZD`;
+            document.getElementById('totOrders').innerText = analytics.total_orders;
             document.getElementById('ordToday').innerText = analytics.todays_orders;
+            document.getElementById('revToday').innerText = `${parseFloat(analytics.revenue_today).toFixed(2)} DZD`;
+            document.getElementById('revMonth').innerText = `${parseFloat(analytics.revenue_this_month).toFixed(2)} DZD`;
             document.getElementById('ordPending').innerText = analytics.pending_orders;
-            document.getElementById('totProd').innerText = analytics.total_products;
-        }
+            document.getElementById('topWilaya').innerText = `${analytics.top_wilaya.name} (${analytics.top_wilaya.count})`;
 
-        // Load Recent Orders
-        const ordersData = await apiCall('orders/?ordering=-created_at&limit=5');
-        if (ordersData && ordersData.results) {
-            const tbody = document.querySelector('#recentOrdersTable tbody');
-            tbody.innerHTML = '';
-            ordersData.results.forEach(order => {
-                const date = new Date(order.created_at).toLocaleDateString();
-                const statusClass = order.status === 'DELIVERED' ? 'status-success' : 'status-pending';
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${order.order_number}</td>
-                        <td>${order.customer_name}</td>
-                        <td>${order.wilaya}</td>
-                        <td>${order.total_amount} DZD</td>
-                        <td><span class="status-badge ${statusClass}">${order.status}</span></td>
-                        <td>${date}</td>
-                    </tr>
-                `;
+            // Charts
+            const dates = analytics.daily_orders.map(d => d.date);
+            const orderCounts = analytics.daily_orders.map(d => d.count);
+            const revenueAmounts = analytics.daily_revenue.map(d => d.revenue);
+
+            // Global Chart Options
+            Chart.defaults.color = '#E0E0E0';
+            Chart.defaults.font.family = 'Inter';
+
+            new Chart(document.getElementById('ordersChart'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Orders',
+                        data: orderCounts,
+                        borderColor: '#E0E0E0',
+                        tension: 0.1,
+                        backgroundColor: 'rgba(224, 224, 224, 0.1)',
+                        fill: true
+                    }]
+                }
+            });
+
+            new Chart(document.getElementById('revenueChart'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Revenue (DZD)',
+                        data: revenueAmounts,
+                        borderColor: '#D4AF37',
+                        tension: 0.1,
+                        backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                        fill: true
+                    }]
+                }
+            });
+
+            const statuses = Object.keys(analytics.orders_by_status);
+            const statusCounts = Object.values(analytics.orders_by_status);
+            new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: statuses,
+                    datasets: [{
+                        data: statusCounts,
+                        backgroundColor: ['#ffae42', '#3498db', '#f1c40f', '#2ecc71', '#0B4D2B', '#e74c3c']
+                    }]
+                }
+            });
+
+            const wilayaNames = analytics.top_10_wilayas.map(w => w.wilaya__name);
+            const wilayaCounts = analytics.top_10_wilayas.map(w => w.count);
+            new Chart(document.getElementById('wilayasChart'), {
+                type: 'bar',
+                data: {
+                    labels: wilayaNames,
+                    datasets: [{
+                        label: 'Orders',
+                        data: wilayaCounts,
+                        backgroundColor: '#0B4D2B'
+                    }]
+                }
             });
         }
     });

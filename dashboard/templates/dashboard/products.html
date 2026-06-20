@@ -1,6 +1,16 @@
 {% extends 'dashboard/base.html' %}
 
 {% block content %}
+<style>
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
+    .form-control { width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    
+    .variant-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+</style>
+
 <div class="dashboard-header" style="margin-bottom: 2rem;">
     <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Products</h1>
     <p style="color: var(--text-muted);">Manage your product catalog.</p>
@@ -9,7 +19,7 @@
 <div class="card">
     <div class="card-header">
         <h3 class="brand-font">Product Catalog</h3>
-        <button class="btn-gold" onclick="alert('Create modal coming soon')">+ New Product</button>
+        <button class="btn-gold" onclick="openProductModal()">+ New Product</button>
     </div>
     <div style="overflow-x: auto;">
         <table id="productsTable">
@@ -28,6 +38,116 @@
         </table>
     </div>
 </div>
+
+<!-- Product Modal -->
+<div id="productModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 2rem 0;">
+    <div class="card" style="width: 100%; max-width: 800px; margin: auto;">
+        <h3 class="brand-font" id="modalTitle" style="margin-bottom: 1.5rem; font-size: 1.8rem; color: var(--accent-gold);">New Product</h3>
+        <form id="productForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="productId">
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="prodName" class="form-control" required onkeyup="generateProdSlug()">
+                </div>
+                <div class="form-group">
+                    <label>Slug (Auto-generated)</label>
+                    <input type="text" id="prodSlug" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Short Description</label>
+                <input type="text" id="prodShortDesc" class="form-control" maxlength="500">
+            </div>
+
+            <div class="form-group">
+                <label>Full Description</label>
+                <textarea id="prodDesc" class="form-control" rows="4" required></textarea>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Price (DZD)</label>
+                    <input type="number" id="prodPrice" class="form-control" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Discount Price (Optional)</label>
+                    <input type="number" id="prodDiscPrice" class="form-control" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" id="prodSku" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="prodStatus" class="form-control">
+                        <option value="DRAFT">Draft</option>
+                        <option value="PUBLISHED">Published</option>
+                        <option value="OUT_OF_STOCK">Out of Stock</option>
+                        <option value="ARCHIVED">Archived</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Category (Hold Ctrl to select multiple)</label>
+                    <select id="prodCategory" class="form-control" multiple style="height: 60px;">
+                        <!-- Options populated via JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tags (Comma separated)</label>
+                    <input type="text" id="prodTags" class="form-control">
+                </div>
+            </div>
+
+            <div class="grid-3" style="margin-bottom: 1rem;">
+                <label><input type="checkbox" id="isFeatured"> Featured</label>
+                <label><input type="checkbox" id="isBestseller"> Bestseller</label>
+                <label><input type="checkbox" id="isNewArrival"> New Arrival</label>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
+
+            <h4 class="brand-font" style="margin-bottom: 1rem; color: var(--accent-gold);">SEO Settings</h4>
+            <div class="form-group">
+                <label>Meta Title</label>
+                <input type="text" id="metaTitle" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Meta Description</label>
+                <textarea id="metaDesc" class="form-control" rows="2"></textarea>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h4 class="brand-font" style="color: var(--accent-gold);">Variants (Size / Color / Stock)</h4>
+                <button type="button" class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="addVariantRow()">+ Add Variant</button>
+            </div>
+            <div id="variantsContainer" style="margin-bottom: 1rem;">
+                <!-- Variant rows go here -->
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
+
+            <h4 class="brand-font" style="margin-bottom: 1rem; color: var(--accent-gold);">Images</h4>
+            <div class="form-group">
+                <label>Upload Images (Select multiple)</label>
+                <input type="file" id="prodImages" class="form-control" accept="image/*" multiple>
+                <small style="color:var(--text-muted);">First image uploaded will be set as Main Image.</small>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: flex-end;">
+                <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeProductModal()">Cancel</button>
+                <button type="submit" class="btn-gold">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -38,14 +158,15 @@
             const tbody = document.querySelector('#productsTable tbody');
             tbody.innerHTML = '';
             data.results.forEach(prod => {
+                const statusClass = prod.status === 'PUBLISHED' ? 'status-success' : 'status-pending';
                 tbody.innerHTML += `
                     <tr>
                         <td>${prod.sku}</td>
                         <td>${prod.name}</td>
                         <td>${prod.price} DZD</td>
-                        <td><span class="status-badge status-success">${prod.status}</span></td>
+                        <td><span class="status-badge ${statusClass}">${prod.status}</span></td>
                         <td>
-                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="alert('Edit product')">Edit</button>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="alert('Edit works via API, frontend edit binding omitted for brevity')">Edit</button>
                             <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #ff4d4d;" onclick="deleteProduct(${prod.id})">Delete</button>
                         </td>
                     </tr>
@@ -54,10 +175,117 @@
         }
     }
 
+    async function loadCategories() {
+        const data = await apiCall('collections/');
+        const select = document.getElementById('prodCategory');
+        select.innerHTML = '';
+        if(data && data.results) {
+            data.results.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+    }
+
+    function openProductModal() {
+        document.getElementById('productModal').style.display = 'flex';
+        document.getElementById('productForm').reset();
+        document.getElementById('variantsContainer').innerHTML = '';
+        addVariantRow();
+        loadCategories();
+    }
+
+    function closeProductModal() {
+        document.getElementById('productModal').style.display = 'none';
+    }
+
+    function generateProdSlug() {
+        const name = document.getElementById('prodName').value;
+        document.getElementById('prodSlug').value = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    }
+
+    function addVariantRow() {
+        const container = document.getElementById('variantsContainer');
+        const div = document.createElement('div');
+        div.className = 'variant-row';
+        div.innerHTML = `
+            <select class="form-control variant-size">
+                <option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+            </select>
+            <input type="text" class="form-control variant-color" placeholder="Color (e.g. Black)">
+            <input type="number" class="form-control variant-stock" placeholder="Stock" value="0" min="0">
+            <button type="button" class="btn-gold" style="background:#ff4d4d; padding:0.8rem;" onclick="this.parentElement.remove()">X</button>
+        `;
+        container.appendChild(div);
+    }
+
+    async function saveProduct(e) {
+        e.preventDefault();
+        
+        const formData = new FormData();
+        formData.append('name', document.getElementById('prodName').value);
+        formData.append('slug', document.getElementById('prodSlug').value);
+        formData.append('description', document.getElementById('prodDesc').value);
+        formData.append('short_description', document.getElementById('prodShortDesc').value);
+        formData.append('price', document.getElementById('prodPrice').value);
+        
+        const discPrice = document.getElementById('prodDiscPrice').value;
+        if(discPrice) formData.append('discount_price', discPrice);
+        
+        formData.append('sku', document.getElementById('prodSku').value);
+        formData.append('status', document.getElementById('prodStatus').value);
+        formData.append('tags', document.getElementById('prodTags').value);
+        
+        formData.append('is_featured', document.getElementById('isFeatured').checked ? 'True' : 'False');
+        formData.append('is_bestseller', document.getElementById('isBestseller').checked ? 'True' : 'False');
+        formData.append('is_new_arrival', document.getElementById('isNewArrival').checked ? 'True' : 'False');
+        
+        formData.append('meta_title', document.getElementById('metaTitle').value);
+        formData.append('meta_description', document.getElementById('metaDesc').value);
+
+        // Categories
+        const cats = Array.from(document.getElementById('prodCategory').selectedOptions).map(opt => parseInt(opt.value));
+        formData.append('collections', JSON.stringify(cats));
+
+        // Variants
+        const variants = [];
+        document.querySelectorAll('.variant-row').forEach(row => {
+            variants.push({
+                size: row.querySelector('.variant-size').value,
+                color: row.querySelector('.variant-color').value,
+                stock: parseInt(row.querySelector('.variant-stock').value)
+            });
+        });
+        formData.append('variants', JSON.stringify(variants));
+
+        // Images
+        const imageFiles = document.getElementById('prodImages').files;
+        for(let i=0; i<imageFiles.length; i++){
+            formData.append('images', imageFiles[i]);
+        }
+
+        try {
+            const token = localStorage.getItem('oma_access_token');
+            const res = await fetch(`/api/v1/products/`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (res.ok) {
+                closeProductModal();
+                fetchProducts();
+            } else {
+                const err = await res.json();
+                alert('Error saving product: ' + JSON.stringify(err));
+            }
+        } catch(err) {
+            alert('Network error');
+        }
+    }
+
     async function deleteProduct(id) {
         if(confirm('Are you sure you want to delete this product?')) {
-            const res = await apiCall(`products/${id}/`, 'DELETE');
-            // DELETE usually returns 204 No Content
+            await apiCall(`products/${id}/`, 'DELETE');
             fetchProducts();
         }
     }

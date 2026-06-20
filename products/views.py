@@ -1,6 +1,9 @@
-from rest_framework import viewsets, permissions, filters
+import json
+from django.db import transaction
+from rest_framework import viewsets, permissions, filters, status
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Product, Collection, Review
+from .models import Product, Collection, Review, ProductVariant, ProductImage
 from .serializers import (
     ProductSerializer, ProductCreateUpdateSerializer,
     CollectionSerializer, ReviewSerializer
@@ -22,6 +25,45 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        serializer = ProductCreateUpdateSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        product = serializer.save()
+
+        # Handle Categories/Collections
+        collections_data = data.get('collections')
+        if collections_data:
+            if isinstance(collections_data, str):
+                collections_data = json.loads(collections_data)
+            for c_id in collections_data:
+                product.collections.add(c_id)
+
+        # Handle Variants
+        variants_data = data.get('variants')
+        if variants_data:
+            if isinstance(variants_data, str):
+                variants_data = json.loads(variants_data)
+            for variant in variants_data:
+                ProductVariant.objects.create(
+                    product=product,
+                    size=variant.get('size'),
+                    color=variant.get('color'),
+                    stock=variant.get('stock', 0)
+                )
+
+        # Handle Images
+        images = request.FILES.getlist('images')
+        for idx, img in enumerate(images):
+            ProductImage.objects.create(
+                product=product,
+                image=img,
+                is_main=(idx == 0) # First image is main
+            )
+
+        return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
 class CollectionViewSet(viewsets.ModelViewSet):
     queryset = Collection.objects.all()

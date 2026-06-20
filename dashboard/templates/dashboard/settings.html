@@ -1,0 +1,224 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<style>
+    .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; }
+    .settings-card { background: var(--card-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .settings-header { color: var(--accent-gold); font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
+    .form-control { width: 100%; padding: 0.8rem; background: #1A1A1A; border: 1px solid #333; color: var(--text-main); border-radius: 4px; }
+    .btn-save { background: var(--accent-gold); color: #000; border: none; padding: 0.8rem 1.5rem; border-radius: 4px; font-weight: 600; cursor: pointer; float: right; margin-top: 1rem; }
+</style>
+
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Settings</h1>
+    <p style="color: var(--text-muted);">Manage your global store configuration.</p>
+</div>
+
+<div class="settings-grid">
+    <!-- Store Identity -->
+    <div class="settings-card">
+        <h3 class="settings-header">Store Identity</h3>
+        <form id="identityForm" onsubmit="saveSettings(event, 'identity')">
+            <div class="form-group">
+                <label>Store Name</label>
+                <input type="text" id="storeName" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Logo Upload</label>
+                <input type="file" id="storeLogo" class="form-control" accept="image/*">
+            </div>
+            <button type="submit" class="btn-save">Save Identity</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+
+    <!-- Social Media -->
+    <div class="settings-card">
+        <h3 class="settings-header">Social Media</h3>
+        <form id="socialForm" onsubmit="saveSettings(event, 'social')">
+            <div class="form-group">
+                <label>WhatsApp Number</label>
+                <input type="text" id="whatsapp" class="form-control" placeholder="+213...">
+            </div>
+            <div class="form-group">
+                <label>Instagram URL</label>
+                <input type="url" id="instagram" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Facebook URL</label>
+                <input type="url" id="facebook" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>TikTok URL</label>
+                <input type="url" id="tiktok" class="form-control">
+            </div>
+            <button type="submit" class="btn-save">Save Social</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+
+    <!-- Delivery Settings -->
+    <div class="settings-card">
+        <h3 class="settings-header">Delivery Configurations</h3>
+        <form id="deliveryForm" onsubmit="saveSettings(event, 'delivery')">
+            <div class="form-group">
+                <label>Free Delivery Threshold (DZD)</label>
+                <input type="number" step="0.01" id="freeDelivery" class="form-control">
+                <small style="color:var(--text-muted);">Set to 0 to disable free delivery over a certain amount.</small>
+            </div>
+            <button type="submit" class="btn-save">Save Delivery</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+
+    <!-- Analytics -->
+    <div class="settings-card">
+        <h3 class="settings-header">Tracking & Analytics</h3>
+        <form id="analyticsForm" onsubmit="saveSettings(event, 'analytics')">
+            <div class="form-group">
+                <label>Meta Pixel ID</label>
+                <input type="text" id="metaPixel" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Google Analytics ID</label>
+                <input type="text" id="googleAnalytics" class="form-control">
+            </div>
+            <button type="submit" class="btn-save">Save Analytics</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+
+    <!-- Hero Banners -->
+    <div class="settings-card" style="grid-column: 1 / -1;">
+        <h3 class="settings-header">Homepage Hero Banner</h3>
+        <form id="heroForm" onsubmit="saveHero(event)">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+                <div>
+                    <div class="form-group">
+                        <label>Hero Title</label>
+                        <input type="text" id="heroTitle" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Hero Subtitle / Tagline</label>
+                        <textarea id="heroSubtitle" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Hero Button Text</label>
+                        <input type="text" id="heroBtnText" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Hero Button Link</label>
+                        <input type="text" id="heroBtnLink" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Hero Background Image</label>
+                        <input type="file" id="heroImg" class="form-control" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn-save">Save Hero Banner</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let settingsId = null;
+    let heroId = null;
+
+    async function loadConfig() {
+        const storeData = await apiCall('store-settings/');
+        if (storeData && storeData.results && storeData.results.length > 0) {
+            const s = storeData.results[0];
+            settingsId = s.id;
+            document.getElementById('storeName').value = s.store_name || '';
+            document.getElementById('whatsapp').value = s.whatsapp_number || '';
+            document.getElementById('instagram').value = s.instagram_url || '';
+            document.getElementById('facebook').value = s.facebook_url || '';
+            document.getElementById('tiktok').value = s.tiktok_url || '';
+            document.getElementById('freeDelivery').value = s.free_delivery_threshold || 0;
+            document.getElementById('metaPixel').value = s.meta_pixel_id || '';
+            document.getElementById('googleAnalytics').value = s.google_analytics_id || '';
+        }
+
+        const heroData = await apiCall('homepage-content/');
+        if (heroData && heroData.results && heroData.results.length > 0) {
+            const h = heroData.results[0];
+            heroId = h.id;
+            document.getElementById('heroTitle').value = h.hero_title || '';
+            document.getElementById('heroSubtitle').value = h.hero_subtitle || '';
+            document.getElementById('heroBtnText').value = h.hero_button_text || '';
+            document.getElementById('heroBtnLink').value = h.hero_button_link || '';
+        }
+    }
+
+    async function saveSettings(e, section) {
+        e.preventDefault();
+        if(!settingsId) return alert('Settings not loaded yet.');
+        
+        const formData = new FormData();
+        if (section === 'identity') {
+            formData.append('store_name', document.getElementById('storeName').value);
+            const logo = document.getElementById('storeLogo').files[0];
+            if(logo) formData.append('logo', logo);
+        } else if (section === 'social') {
+            formData.append('whatsapp_number', document.getElementById('whatsapp').value);
+            formData.append('instagram_url', document.getElementById('instagram').value);
+            formData.append('facebook_url', document.getElementById('facebook').value);
+            formData.append('tiktok_url', document.getElementById('tiktok').value);
+        } else if (section === 'delivery') {
+            formData.append('free_delivery_threshold', document.getElementById('freeDelivery').value);
+        } else if (section === 'analytics') {
+            formData.append('meta_pixel_id', document.getElementById('metaPixel').value);
+            formData.append('google_analytics_id', document.getElementById('googleAnalytics').value);
+        }
+
+        try {
+            const token = localStorage.getItem('oma_access_token');
+            const res = await fetch(`/api/v1/store-settings/${settingsId}/`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (res.ok) alert(`${section} settings saved successfully.`);
+            else alert(`Error saving ${section} settings.`);
+        } catch(err) {
+            alert('Network error');
+        }
+    }
+
+    async function saveHero(e) {
+        e.preventDefault();
+        if(!heroId) return alert('Hero content not loaded yet.');
+
+        const formData = new FormData();
+        formData.append('hero_title', document.getElementById('heroTitle').value);
+        formData.append('hero_subtitle', document.getElementById('heroSubtitle').value);
+        formData.append('hero_button_text', document.getElementById('heroBtnText').value);
+        formData.append('hero_button_link', document.getElementById('heroBtnLink').value);
+        const img = document.getElementById('heroImg').files[0];
+        if(img) formData.append('hero_image', img);
+
+        try {
+            const token = localStorage.getItem('oma_access_token');
+            const res = await fetch(`/api/v1/homepage-content/${heroId}/`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (res.ok) alert('Hero banner saved successfully.');
+            else alert('Error saving Hero banner.');
+        } catch(err) {
+            alert('Network error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => loadConfig());
+</script>
+{% endblock %}

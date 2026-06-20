@@ -22,6 +22,8 @@ class StoreSettings(models.Model):
     instagram_url = models.URLField(blank=True, null=True)
     facebook_url = models.URLField(blank=True, null=True)
     tiktok_url = models.URLField(blank=True, null=True)
+    meta_pixel_id = models.CharField(max_length=50, blank=True, null=True)
+    google_analytics_id = models.CharField(max_length=50, blank=True, null=True)
     free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount above which delivery is free.")
 
     class Meta:

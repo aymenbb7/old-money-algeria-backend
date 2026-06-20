@@ -249,10 +249,12 @@
         <div class="sidebar-menu">
             <a href="/dashboard/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_index' %}active{% endif %}"><i class="fas fa-th-large"></i> Dashboard</a>
             <a href="/dashboard/orders/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_orders' %}active{% endif %}"><i class="fas fa-shopping-bag"></i> Orders</a>
+            <a href="/dashboard/categories/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_categories' %}active{% endif %}"><i class="fas fa-tags"></i> Categories</a>
             <a href="/dashboard/products/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_products' %}active{% endif %}"><i class="fas fa-box"></i> Products</a>
             <a href="/dashboard/customers/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_customers' %}active{% endif %}"><i class="fas fa-users"></i> Customers</a>
             <a href="/dashboard/wilayas/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_wilayas' %}active{% endif %}"><i class="fas fa-map-marker-alt"></i> Wilayas</a>
             <a href="/dashboard/coupons/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_coupons' %}active{% endif %}"><i class="fas fa-ticket-alt"></i> Coupons</a>
+            <a href="/dashboard/settings/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_settings' %}active{% endif %}"><i class="fas fa-cog"></i> Settings</a>
         </div>
     </aside>
 

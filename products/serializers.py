@@ -2,9 +2,14 @@ from rest_framework import serializers
 from .models import Collection, Product, ProductImage, ProductVariant, Review
 
 class CollectionSerializer(serializers.ModelSerializer):
+    product_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Collection
-        fields = '__all__'
+        fields = ['id', 'name', 'slug', 'description', 'image', 'product_count']
+
+    def get_product_count(self, obj):
+        return obj.products.count()
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:

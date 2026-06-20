@@ -11,6 +11,7 @@ from products.models import Product, ProductVariant
 class WilayaViewSet(viewsets.ModelViewSet):
     queryset = Wilaya.objects.all()
     serializer_class = WilayaSerializer
+    pagination_class = None
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -65,27 +66,57 @@ class AnalyticsAPIView(views.APIView):
 
     def get(self, request):
         today = timezone.now().date()
-        last_30_days = today - timedelta(days=30)
+        thirty_days_ago = today - timedelta(days=30)
 
-        # Revenue
-        revenue_today = Order.objects.filter(created_at__date=today, status__in=['DELIVERED', 'SHIPPED', 'CONFIRMED']).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        revenue_this_month = Order.objects.filter(created_at__year=today.year, created_at__month=today.month, status__in=['DELIVERED', 'SHIPPED', 'CONFIRMED']).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        
-        # Orders
+        # Basic Stats
         total_orders = Order.objects.count()
         todays_orders = Order.objects.filter(created_at__date=today).count()
         pending_orders = Order.objects.filter(status='PENDING').count()
         delivered_orders = Order.objects.filter(status='DELIVERED').count()
         
-        # Products
-        total_products = Product.objects.count()
+        # Revenue (Delivered only as requested)
+        revenue_today = Order.objects.filter(created_at__date=today, status='DELIVERED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        revenue_this_month = Order.objects.filter(created_at__year=today.year, created_at__month=today.month, status='DELIVERED').aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+
+        # Time Series for Last 30 Days (Daily Orders and Daily Revenue)
+        # Using Extra/TruncDate can be complex, doing a fast python-side aggregation for sqlite/pg compatibility
+        recent_orders = Order.objects.filter(created_at__date__gte=thirty_days_ago)
+        daily_orders_dict = {}
+        daily_revenue_dict = {}
+
+        for i in range(31):
+            day = thirty_days_ago + timedelta(days=i)
+            daily_orders_dict[str(day)] = 0
+            daily_revenue_dict[str(day)] = 0
+
+        for order in recent_orders:
+            day_str = str(order.created_at.date())
+            daily_orders_dict[day_str] += 1
+            if order.status == 'DELIVERED':
+                daily_revenue_dict[day_str] += float(order.total_amount)
+
+        daily_orders = [{'date': k, 'count': v} for k, v in daily_orders_dict.items()]
+        daily_revenue = [{'date': k, 'revenue': v} for k, v in daily_revenue_dict.items()]
+
+        # Orders by Status
+        status_counts_raw = Order.objects.values('status').annotate(count=Count('id'))
+        orders_by_status = {item['status']: item['count'] for item in status_counts_raw}
+
+        # Top 10 Wilayas
+        top_wilayas = Order.objects.values('wilaya__name').annotate(count=Count('id')).order_by('-count')[:10]
+
+        top_wilaya_name = top_wilayas[0]['wilaya__name'] if top_wilayas else "N/A"
+        top_wilaya_count = top_wilayas[0]['count'] if top_wilayas else 0
 
         return Response({
-            'revenue_today': revenue_today,
-            'revenue_this_month': revenue_this_month,
             'total_orders': total_orders,
             'todays_orders': todays_orders,
             'pending_orders': pending_orders,
-            'delivered_orders': delivered_orders,
-            'total_products': total_products,
+            'revenue_today': revenue_today,
+            'revenue_this_month': revenue_this_month,
+            'top_wilaya': {'name': top_wilaya_name, 'count': top_wilaya_count},
+            'daily_orders': daily_orders,
+            'daily_revenue': daily_revenue,
+            'orders_by_status': orders_by_status,
+            'top_10_wilayas': top_wilayas,
         })

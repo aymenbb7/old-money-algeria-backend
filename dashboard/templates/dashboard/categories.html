@@ -1,0 +1,155 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Categories</h1>
+    <p style="color: var(--text-muted);">Manage product collections and categories.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Category List</h3>
+        <button class="btn-gold" onclick="openCategoryModal()">+ New Category</button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="categoriesTable">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Products</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Category Modal -->
+<div id="categoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+        <h3 class="brand-font" id="modalTitle" style="margin-bottom: 1rem;">New Category</h3>
+        <form id="categoryForm" onsubmit="saveCategory(event)">
+            <input type="hidden" id="categoryId">
+            <div style="margin-bottom: 1rem;">
+                <label>Name</label>
+                <input type="text" id="catName" required style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;" onkeyup="generateSlug()">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label>Slug (Auto-generated)</label>
+                <input type="text" id="catSlug" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label>Image Upload</label>
+                <input type="file" id="catImage" accept="image/*" style="width: 100%; margin-top: 0.5rem;">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeCategoryModal()">Cancel</button>
+                <button type="submit" class="btn-gold">Save Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchCategories() {
+        // Categories uses the 'collections' API under the hood
+        const data = await apiCall('collections/');
+        if (data && data.results) {
+            const tbody = document.querySelector('#categoriesTable tbody');
+            tbody.innerHTML = '';
+            data.results.forEach(cat => {
+                const imgStr = cat.image ? `<img src="${cat.image}" width="50" style="border-radius:4px;">` : 'No Image';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${imgStr}</td>
+                        <td>${cat.name}</td>
+                        <td>${cat.slug}</td>
+                        <td>${cat.product_count}</td>
+                        <td>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick='editCategory(${JSON.stringify(cat).replace(/'/g, "&#39;")})'>Edit</button>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #ff4d4d;" onclick="deleteCategory(${cat.id})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    function openCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'flex';
+        document.getElementById('modalTitle').innerText = 'New Category';
+        document.getElementById('categoryForm').reset();
+        document.getElementById('categoryId').value = '';
+    }
+
+    function closeCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'none';
+    }
+
+    function editCategory(cat) {
+        openCategoryModal();
+        document.getElementById('modalTitle').innerText = 'Edit Category';
+        document.getElementById('categoryId').value = cat.id;
+        document.getElementById('catName').value = cat.name;
+        document.getElementById('catSlug').value = cat.slug;
+    }
+
+    function generateSlug() {
+        const name = document.getElementById('catName').value;
+        const slug = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+        document.getElementById('catSlug').value = slug;
+    }
+
+    async function saveCategory(e) {
+        e.preventDefault();
+        const id = document.getElementById('categoryId').value;
+        const name = document.getElementById('catName').value;
+        const slug = document.getElementById('catSlug').value;
+        const imageInput = document.getElementById('catImage');
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('slug', slug);
+        if (imageInput.files[0]) {
+            formData.append('image', imageInput.files[0]);
+        }
+
+        const method = id ? 'PATCH' : 'POST';
+        const url = id ? `collections/${id}/` : `collections/`;
+        
+        try {
+            const token = localStorage.getItem('oma_access_token');
+            const res = await fetch(`/api/v1/${url}`, {
+                method: method,
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            if (res.ok) {
+                closeCategoryModal();
+                fetchCategories();
+            } else {
+                alert('Error saving category');
+            }
+        } catch(err) {
+            alert('Network error');
+        }
+    }
+
+    async function deleteCategory(id) {
+        if(confirm('Are you sure you want to delete this category?')) {
+            await apiCall(`collections/${id}/`, 'DELETE');
+            fetchCategories();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => fetchCategories());
+</script>
+{% endblock %}
