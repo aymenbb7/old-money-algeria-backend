@@ -116,7 +116,7 @@
                 if (res.ok && data.access) {
                     localStorage.setItem('oma_access_token', data.access);
                     localStorage.setItem('oma_refresh_token', data.refresh);
-                    window.location.href = '/dashboard/';
+                    window.location.href = '/admin/';
                 } else {
                     errorMsg.style.display = 'block';
                 }

@@ -23,6 +23,6 @@ CLOUDINARY_STORAGE = {
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = False
-cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', 'https://old-money-algeria-frontend.vercel.app,https://old-money-algeria.vercel.app')
 if cors_origins_env:
     CORS_ALLOWED_ORIGINS = cors_origins_env.split(',')

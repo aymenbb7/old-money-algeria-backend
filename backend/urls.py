@@ -23,7 +23,7 @@ router.register(r'users', UserViewSet)
 router.register(r'customers', CustomerProfileViewSet)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('django-admin/', admin.site.urls),
     
     # API Routes
     path('api/v1/', include(router.urls)),
@@ -36,7 +36,7 @@ urlpatterns = [
     path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Custom Dashboard Route (will be handled by dashboard app)
-    path('dashboard/', include('dashboard.urls')),
+    path('admin/', include('dashboard.urls')),
 ]
 
 if settings.DEBUG:
