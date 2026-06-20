@@ -1,0 +1,67 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Products</h1>
+    <p style="color: var(--text-muted);">Manage your product catalog.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Product Catalog</h3>
+        <button class="btn-gold" onclick="alert('Create modal coming soon')">+ New Product</button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="productsTable">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchProducts() {
+        const data = await apiCall('products/');
+        if (data && data.results) {
+            const tbody = document.querySelector('#productsTable tbody');
+            tbody.innerHTML = '';
+            data.results.forEach(prod => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${prod.sku}</td>
+                        <td>${prod.name}</td>
+                        <td>${prod.price} DZD</td>
+                        <td><span class="status-badge status-success">${prod.status}</span></td>
+                        <td>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="alert('Edit product')">Edit</button>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #ff4d4d;" onclick="deleteProduct(${prod.id})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    async function deleteProduct(id) {
+        if(confirm('Are you sure you want to delete this product?')) {
+            const res = await apiCall(`products/${id}/`, 'DELETE');
+            // DELETE usually returns 204 No Content
+            fetchProducts();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => fetchProducts());
+</script>
+{% endblock %}

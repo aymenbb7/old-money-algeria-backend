@@ -1,0 +1,56 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Customers</h1>
+    <p style="color: var(--text-muted);">View registered customers and their lifetime metrics.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Customer Database</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="customersTable">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Total Orders</th>
+                    <th>Total Spending (DZD)</th>
+                    <th>Last Order</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchCustomers() {
+        const data = await apiCall('customers/');
+        if (data && data.results) {
+            const tbody = document.querySelector('#customersTable tbody');
+            tbody.innerHTML = '';
+            data.results.forEach(cust => {
+                const lastDate = cust.last_order_date ? new Date(cust.last_order_date).toLocaleDateString() : 'N/A';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${cust.user ? cust.user.email : 'Unknown'}</td>
+                        <td>${cust.user ? cust.user.first_name + ' ' + cust.user.last_name : 'Unknown'}</td>
+                        <td>${cust.total_orders}</td>
+                        <td style="color: var(--accent-gold);">${cust.total_spending}</td>
+                        <td>${lastDate}</td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => fetchCustomers());
+</script>
+{% endblock %}

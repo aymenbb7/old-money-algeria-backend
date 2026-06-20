@@ -1,0 +1,103 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Orders</h1>
+    <p style="color: var(--text-muted);">Manage and update order statuses.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">All Orders</h3>
+        <select id="statusFilter" class="btn-gold" style="background-color: var(--card-color); color: var(--text-main); border: 1px solid var(--border-color);">
+            <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="PREPARING">Preparing</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+        </select>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="ordersTable">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Customer</th>
+                    <th>Wilaya</th>
+                    <th>Total</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let ordersList = [];
+    
+    async function fetchOrders(statusFilter = '') {
+        const query = statusFilter ? `?status=${statusFilter}` : '';
+        const data = await apiCall(`orders/${query}`);
+        if (data && data.results) {
+            ordersList = data.results;
+            renderOrders();
+        }
+    }
+
+    function renderOrders() {
+        const tbody = document.querySelector('#ordersTable tbody');
+        tbody.innerHTML = '';
+        ordersList.forEach(order => {
+            const date = new Date(order.created_at).toLocaleDateString();
+            const statusClass = order.status === 'DELIVERED' ? 'status-success' : 'status-pending';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${order.order_number}</td>
+                    <td>${order.guest_name || 'Guest'}</td>
+                    <td>${order.wilaya}</td>
+                    <td>${order.total_amount} DZD</td>
+                    <td>${date}</td>
+                    <td><span class="status-badge ${statusClass}">${order.status}</span></td>
+                    <td>
+                        <select onchange="updateOrderStatus(${order.id}, this.value)" style="background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); padding: 0.2rem;">
+                            <option value="" disabled selected>Update...</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="CONFIRMED">Confirmed</option>
+                            <option value="PREPARING">Preparing</option>
+                            <option value="SHIPPED">Shipped</option>
+                            <option value="DELIVERED">Delivered</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    async function updateOrderStatus(id, newStatus) {
+        if(!newStatus) return;
+        const res = await apiCall(`orders/${id}/update_status/`, 'PATCH', { status: newStatus });
+        if(res && res.status === 'status updated') {
+            fetchOrders(document.getElementById('statusFilter').value);
+        } else {
+            alert('Error updating status');
+        }
+    }
+
+    document.getElementById('statusFilter').addEventListener('change', (e) => {
+        fetchOrders(e.target.value);
+    });
+
+    document.addEventListener('DOMContentLoaded', () => fetchOrders());
+</script>
+{% endblock %}

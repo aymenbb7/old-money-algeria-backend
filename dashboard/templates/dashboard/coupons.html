@@ -1,0 +1,63 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Coupons</h1>
+    <p style="color: var(--text-muted);">Create and manage discount codes.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Active Coupons</h3>
+        <button class="btn-gold" onclick="alert('Create modal coming soon')">+ New Coupon</button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="couponsTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th>Min Order</th>
+                    <th>Usage</th>
+                    <th>Expires</th>
+                    <th>Active</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchCoupons() {
+        const data = await apiCall('coupons/');
+        if (data && data.results) {
+            const tbody = document.querySelector('#couponsTable tbody');
+            tbody.innerHTML = '';
+            data.results.forEach(c => {
+                const expDate = c.expiration_date ? new Date(c.expiration_date).toLocaleDateString() : 'Never';
+                const usage = c.usage_limit ? `${c.times_used} / ${c.usage_limit}` : c.times_used;
+                const valueStr = c.discount_type === 'PERCENTAGE' ? `${c.value}%` : `${c.value} DZD`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--accent-gold);">${c.code}</td>
+                        <td>${c.discount_type}</td>
+                        <td>${valueStr}</td>
+                        <td>${c.min_order_amount}</td>
+                        <td>${usage}</td>
+                        <td>${expDate}</td>
+                        <td><span class="status-badge ${c.is_active ? 'status-success' : ''}">${c.is_active ? 'Active' : 'Inactive'}</span></td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => fetchCoupons());
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Overview</h1>
+    <p style="color: var(--text-muted);">Welcome back. Here's what's happening today.</p>
+</div>
+
+<div class="grid-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Revenue Today</div>
+        <div class="brand-font" style="font-size: 2rem; color: var(--accent-gold);" id="revToday">0 DZD</div>
+    </div>
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Orders Today</div>
+        <div class="brand-font" style="font-size: 2rem; color: var(--text-main);" id="ordToday">0</div>
+    </div>
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Pending Orders</div>
+        <div class="brand-font" style="font-size: 2rem; color: #ffae42;" id="ordPending">0</div>
+    </div>
+    <div class="card">
+        <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Total Products</div>
+        <div class="brand-font" style="font-size: 2rem; color: var(--success-green);" id="totProd">0</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Recent Orders</h3>
+        <button class="btn-gold" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">View All</button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="recentOrdersTable">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Customer</th>
+                    <th>Wilaya</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Load Analytics
+        const analytics = await apiCall('analytics/');
+        if (analytics) {
+            document.getElementById('revToday').innerText = `${parseFloat(analytics.revenue_today).toFixed(2)} DZD`;
+            document.getElementById('ordToday').innerText = analytics.todays_orders;
+            document.getElementById('ordPending').innerText = analytics.pending_orders;
+            document.getElementById('totProd').innerText = analytics.total_products;
+        }
+
+        // Load Recent Orders
+        const ordersData = await apiCall('orders/?ordering=-created_at&limit=5');
+        if (ordersData && ordersData.results) {
+            const tbody = document.querySelector('#recentOrdersTable tbody');
+            tbody.innerHTML = '';
+            ordersData.results.forEach(order => {
+                const date = new Date(order.created_at).toLocaleDateString();
+                const statusClass = order.status === 'DELIVERED' ? 'status-success' : 'status-pending';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${order.order_number}</td>
+                        <td>${order.customer_name}</td>
+                        <td>${order.wilaya}</td>
+                        <td>${order.total_amount} DZD</td>
+                        <td><span class="status-badge ${statusClass}">${order.status}</span></td>
+                        <td>${date}</td>
+                    </tr>
+                `;
+            });
+        }
+    });
+</script>
+{% endblock %}

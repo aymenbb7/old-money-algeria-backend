@@ -1,0 +1,77 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Wilayas & Delivery</h1>
+    <p style="color: var(--text-muted);">Manage delivery zones and pricing.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="brand-font">Algerian Wilayas</h3>
+    </div>
+    <div style="overflow-x: auto;">
+        <table id="wilayasTable">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Home Price (DZD)</th>
+                    <th>Bureau Price (DZD)</th>
+                    <th>Active</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function fetchWilayas() {
+        const data = await apiCall('wilayas/?limit=100'); // Fetch all 58
+        if (data && data.results) {
+            const tbody = document.querySelector('#wilayasTable tbody');
+            tbody.innerHTML = '';
+            data.results.forEach(w => {
+                tbody.innerHTML += `
+                    <tr id="row-${w.code}">
+                        <td>${w.code}</td>
+                        <td>${w.name}</td>
+                        <td><input type="number" id="home-${w.code}" value="${w.home_delivery_price}" style="width:80px; background:#1A1A1A; color:#fff; border:1px solid #333; padding:0.2rem;"></td>
+                        <td><input type="number" id="bureau-${w.code}" value="${w.bureau_delivery_price}" style="width:80px; background:#1A1A1A; color:#fff; border:1px solid #333; padding:0.2rem;"></td>
+                        <td><input type="checkbox" id="active-${w.code}" ${w.is_active ? 'checked' : ''}></td>
+                        <td>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="saveWilaya('${w.code}')">Save</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    async function saveWilaya(code) {
+        const home_price = document.getElementById(`home-${code}`).value;
+        const bureau_price = document.getElementById(`bureau-${code}`).value;
+        const is_active = document.getElementById(`active-${code}`).checked;
+
+        const res = await apiCall(`wilayas/${code}/`, 'PATCH', {
+            home_delivery_price: home_price,
+            bureau_delivery_price: bureau_price,
+            is_active: is_active
+        });
+
+        if(res && res.code) {
+            alert('Wilaya updated successfully');
+        } else {
+            alert('Error updating wilaya');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => fetchWilayas());
+</script>
+{% endblock %}
