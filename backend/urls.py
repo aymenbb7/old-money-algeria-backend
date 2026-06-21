@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView
+from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet
 from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet
 from orders.views import OrderViewSet, CouponViewSet
 from users.views import UserViewSet, CustomerProfileViewSet
@@ -21,6 +21,7 @@ router.register(r'store-settings', StoreSettingsViewSet)
 router.register(r'settings', StoreSettingsViewSet, basename='settings')
 router.register(r'homepage-content', HomepageContentViewSet)
 router.register(r'homepage/banners', HomepageContentViewSet, basename='banners')
+router.register(r'homepage/sections', HomepageSectionViewSet, basename='sections')
 router.register(r'users', UserViewSet)
 router.register(r'customers', CustomerProfileViewSet)
 

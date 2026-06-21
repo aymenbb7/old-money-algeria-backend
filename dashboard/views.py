@@ -27,3 +27,6 @@ def dashboard_customers(request):
 
 def dashboard_coupons(request):
     return render(request, 'dashboard/coupons.html')
+
+def dashboard_homepage(request):
+    return render(request, 'dashboard/homepage.html')

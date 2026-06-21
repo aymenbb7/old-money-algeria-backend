@@ -1,0 +1,144 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<style>
+    .section-card {
+        background: var(--card-color);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+    .section-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.4rem;
+        color: var(--accent-gold);
+    }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.9rem; }
+    .form-control { width: 100%; padding: 0.8rem; background: #1A1A1A; border: 1px solid #333; color: var(--text-main); border-radius: 4px; }
+    
+    .product-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #111;
+        border: 1px solid var(--border-color);
+        padding: 0.5rem;
+        border-radius: 4px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.5rem;
+    }
+    .product-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        background: #1A1A1A;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #333;
+    }
+    .product-item input {
+        cursor: pointer;
+    }
+</style>
+
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Homepage Sections</h1>
+    <p style="color: var(--text-muted);">Manage the product sections displayed on the homepage.</p>
+</div>
+
+<div id="sectionsContainer">
+    <!-- Sections populated via JS -->
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allProducts = [];
+
+    async function loadData() {
+        const prodData = await apiCall('products/?limit=100');
+        allProducts = prodData ? prodData.results : [];
+
+        const secData = await apiCall('homepage/sections/');
+        if (secData && secData.results) {
+            renderSections(secData.results);
+        }
+    }
+
+    function renderSections(sections) {
+        const container = document.getElementById('sectionsContainer');
+        container.innerHTML = '';
+        
+        sections.forEach(sec => {
+            const selectedIds = sec.products.map(p => p.id);
+            
+            let productsHtml = '';
+            allProducts.forEach(p => {
+                const checked = selectedIds.includes(p.id) ? 'checked' : '';
+                productsHtml += `
+                    <label class="product-item">
+                        <input type="checkbox" value="${p.id}" ${checked} onchange="updateSectionProducts(${sec.id}, this)">
+                        ${p.name}
+                    </label>
+                `;
+            });
+
+            container.innerHTML += `
+                <div class="section-card" id="section-${sec.id}">
+                    <div class="section-header">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <input type="text" class="form-control" style="font-family: 'Playfair Display', serif; font-size: 1.2rem; width: 300px; color: var(--accent-gold);" value="${sec.title}" onchange="updateSection(${sec.id}, 'title', this.value)">
+                            <span style="color:var(--text-muted); font-size:0.8rem; background:#222; padding:0.2rem 0.5rem; border-radius:4px;">${sec.section_type}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                                <input type="checkbox" ${sec.is_active ? 'checked' : ''} onchange="updateSection(${sec.id}, 'is_active', this.checked)"> Active
+                            </label>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <label style="color:var(--text-muted); font-size:0.8rem;">Order:</label>
+                                <input type="number" class="form-control" style="width:70px; padding:0.4rem;" value="${sec.display_order}" onchange="updateSection(${sec.id}, 'display_order', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="color:var(--text-muted); font-size:0.9rem; margin-bottom:0.5rem; display:block;">Select Products to Display</label>
+                        <div class="product-list" id="products-${sec.id}">
+                            ${productsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    async function updateSection(id, field, value) {
+        const body = {};
+        body[field] = value;
+        await apiCall(`homepage/sections/${id}/`, 'PATCH', body);
+    }
+
+    async function updateSectionProducts(secId, checkboxElem) {
+        const container = document.getElementById(`products-${secId}`);
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+        const productIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        await apiCall(`homepage/sections/${secId}/`, 'PATCH', { products: productIds });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => loadData());
+</script>
+{% endblock %}

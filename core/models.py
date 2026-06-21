@@ -1,5 +1,4 @@
 from django.db import models
-from cloudinary.models import CloudinaryField
 
 class Wilaya(models.Model):
     code = models.CharField(max_length=2, unique=True, primary_key=True)
@@ -45,7 +44,7 @@ class HomepageContent(models.Model):
     # Singleton Model
     hero_title = models.CharField(max_length=255, blank=True, null=True)
     hero_subtitle = models.TextField(blank=True, null=True)
-    hero_image = CloudinaryField('image', folder='homepage', blank=True, null=True)
+    hero_image_url = models.URLField(max_length=1000, blank=True, null=True)
     hero_button_text = models.CharField(max_length=50, blank=True, null=True)
     hero_button_link = models.CharField(max_length=255, blank=True, null=True)
 
@@ -55,7 +54,7 @@ class HomepageContent(models.Model):
     promotional_banner_active = models.BooleanField(default=False)
 
     collections_hero_title = models.CharField(max_length=255, blank=True, null=True)
-    collections_hero_image = CloudinaryField('image', folder='homepage', blank=True, null=True)
+    collections_hero_image_url = models.URLField(max_length=1000, blank=True, null=True)
 
     class Meta:
         verbose_name = "Homepage Content"
@@ -68,3 +67,22 @@ class HomepageContent(models.Model):
         if not self.pk and HomepageContent.objects.exists():
             raise Exception('HomepageContent can only have one instance.')
         super().save(*args, **kwargs)
+
+class HomepageSection(models.Model):
+    SECTION_TYPES = [
+        ('NOUVEAUTES', 'Nouveautés'),
+        ('BESTSELLERS', 'Bestsellers'),
+        ('RECOMMANDATIONS', 'Recommandations'),
+        ('CUSTOM', 'Custom'),
+    ]
+    title = models.CharField(max_length=255)
+    section_type = models.CharField(max_length=50, choices=SECTION_TYPES, default='CUSTOM')
+    products = models.ManyToManyField('products.Product', blank=True)
+    is_active = models.BooleanField(default=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title

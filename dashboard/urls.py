@@ -11,4 +11,5 @@ urlpatterns = [
     path('settings/', views.dashboard_settings, name='dashboard_settings'),
     path('customers/', views.dashboard_customers, name='dashboard_customers'),
     path('coupons/', views.dashboard_coupons, name='dashboard_coupons'),
+    path('homepage/', views.dashboard_homepage, name='dashboard_homepage'),
 ]

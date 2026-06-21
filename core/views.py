@@ -1,10 +1,11 @@
-from rest_framework import viewsets, permissions, views, status
+from rest_framework import viewsets, permissions, views, status, filters
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count
 from django.utils import timezone
 from datetime import timedelta
-from .models import Wilaya, StoreSettings, HomepageContent
-from .serializers import WilayaSerializer, StoreSettingsSerializer, HomepageContentSerializer
+from .models import Wilaya, StoreSettings, HomepageContent, HomepageSection
+from .serializers import WilayaSerializer, StoreSettingsSerializer, HomepageContentSerializer, HomepageSectionSerializer
 from orders.models import Order
 from products.models import Product, ProductVariant
 
@@ -61,7 +62,18 @@ class HomepageContentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(content)
         return Response({'results': [serializer.data]})
 
+class HomepageSectionViewSet(viewsets.ModelViewSet):
+    queryset = HomepageSection.objects.all()
+    serializer_class = HomepageSectionSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['is_active', 'section_type']
+    ordering_fields = ['display_order']
+    ordering = ['display_order']
 
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
 class AnalyticsAPIView(views.APIView):
     permission_classes = [permissions.IsAdminUser]
