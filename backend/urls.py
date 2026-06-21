@@ -20,6 +20,7 @@ router.register(r'wilayas', WilayaViewSet)
 router.register(r'store-settings', StoreSettingsViewSet)
 router.register(r'settings', StoreSettingsViewSet, basename='settings')
 router.register(r'homepage-content', HomepageContentViewSet)
+router.register(r'homepage/banners', HomepageContentViewSet, basename='banners')
 router.register(r'users', UserViewSet)
 router.register(r'customers', CustomerProfileViewSet)
 
