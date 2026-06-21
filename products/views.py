@@ -31,6 +31,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         data = request.data.copy() if hasattr(request.data, 'copy') else request.data
         collections_data = data.pop('collections', None)
         variants_data = data.pop('variants', None)
+        images_data = data.pop('images', None)
         
         serializer = ProductCreateUpdateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -38,15 +39,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         self._handle_collections(product, collections_data)
         self._handle_variants(product, variants_data)
-        
-        # Handle Images
-        images = request.FILES.getlist('images')
-        for idx, img in enumerate(images):
-            ProductImage.objects.create(
-                product=product,
-                image=img,
-                is_main=(idx == 0) # First image is main
-            )
+        self._handle_images(product, images_data)
 
         return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
@@ -56,6 +49,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         data = request.data.copy() if hasattr(request.data, 'copy') else request.data
         collections_data = data.pop('collections', None)
         variants_data = data.pop('variants', None)
+        images_data = data.pop('images', None)
         
         serializer = ProductCreateUpdateSerializer(product, data=data, partial=kwargs.get('partial', False))
         serializer.is_valid(raise_exception=True)
@@ -65,21 +59,37 @@ class ProductViewSet(viewsets.ModelViewSet):
             self._handle_collections(product, collections_data)
             
         if variants_data is not None:
-            # For simplicity, if variants are provided on update, we replace them.
             product.variants.all().delete()
             self._handle_variants(product, variants_data)
 
-        # Handle Images if provided
-        images = request.FILES.getlist('images')
-        if images:
-            for idx, img in enumerate(images):
-                ProductImage.objects.create(
-                    product=product,
-                    image=img,
-                    is_main=False
-                )
+        if images_data is not None:
+            self._handle_images(product, images_data)
 
         return Response(ProductSerializer(product).data)
+
+    def _handle_images(self, product, images_data):
+        if not images_data:
+            product.images.all().delete()
+            return
+            
+        if isinstance(images_data, str):
+            try:
+                images_data = json.loads(images_data)
+            except:
+                images_data = [u.strip() for u in images_data.replace('\n', ',').split(',') if u.strip()]
+        elif not isinstance(images_data, list):
+            images_data = [images_data]
+            
+        product.images.all().delete()
+        for idx, img_url in enumerate(images_data):
+            is_main = (idx == 0)
+            is_hover = (idx == 1)
+            ProductImage.objects.create(
+                product=product,
+                image_url=img_url,
+                is_main=is_main,
+                is_hover=is_hover
+            )
 
     def _handle_collections(self, product, collections_data):
         if not collections_data:

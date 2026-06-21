@@ -28,10 +28,14 @@ class OrderViewSet(viewsets.ModelViewSet):
     def checkout(self, request):
         data = request.data
         
-        wilaya_code = data.get('wilaya_code')
+        wilaya_code = data.get('wilaya_code') or data.get('wilaya')
         items_data = data.get('items', [])
         coupon_code = data.get('coupon_code')
-        is_home_delivery = data.get('is_home_delivery', True)
+        
+        is_home_delivery = data.get('is_home_delivery')
+        if is_home_delivery is None:
+            delivery_type = data.get('delivery_type', 'HOME')
+            is_home_delivery = (delivery_type == 'HOME')
         
         if not items_data:
             return Response({'error': 'La commande doit contenir au moins un article.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -40,6 +44,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not wilaya.is_active:
             return Response({'error': 'La livraison vers cette wilaya est actuellement désactivée.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        address = data.get('address') or data.get('delivery_address', '')
+
         # Create Order Shell
         order = Order(
             guest_name=data.get('guest_name'),
@@ -47,7 +53,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             guest_email=data.get('guest_email'),
             wilaya=wilaya,
             commune=data.get('commune', ''),
-            address=data.get('address', ''),
+            address=address,
             is_home_delivery=is_home_delivery,
             customer_notes=data.get('customer_notes', '')
         )

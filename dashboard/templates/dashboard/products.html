@@ -121,10 +121,15 @@
 
             <h4 class="brand-font" style="margin-bottom: 1rem; color: var(--accent-gold);">Images</h4>
             <div class="form-group">
-                <label>Upload Images (Select multiple)</label>
-                <input type="file" id="prodImages" class="form-control" accept="image/*" multiple>
-                <small style="color:var(--text-muted);">First image uploaded will be set as Main Image.</small>
+                <label>Product Image URLs (one per line)</label>
+                <textarea id="prodImageUrls" class="form-control" rows="4" placeholder="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&#10;https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800" oninput="updateProductImagesPreview()"></textarea>
+                <small style="color:var(--text-muted);">
+                    First URL = Main Image (is_main=True)<br>
+                    Second URL = Hover Image (is_hover=True)<br>
+                    Rest = Additional Images
+                </small>
             </div>
+            <div id="productImagesPreviewContainer" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; margin-bottom: 1.5rem;"></div>
 
             <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: flex-end;">
                 <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeProductModal()">Cancel</button>
@@ -176,12 +181,56 @@
         }
     }
 
+    function updateProductImagesPreview() {
+        const container = document.getElementById('productImagesPreviewContainer');
+        container.innerHTML = '';
+        const urlsText = document.getElementById('prodImageUrls').value;
+        const urls = urlsText.split('\n').map(u => u.trim()).filter(u => u);
+        urls.forEach((url, idx) => {
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.width = '80px';
+            wrapper.style.height = '80px';
+            wrapper.style.border = '1px solid var(--border-color)';
+            wrapper.style.borderRadius = '4px';
+            wrapper.style.overflow = 'hidden';
+            wrapper.style.background = '#1a1a1a';
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.onerror = () => { img.style.display = 'none'; };
+            
+            const badge = document.createElement('span');
+            badge.style.position = 'absolute';
+            badge.style.bottom = '2px';
+            badge.style.left = '2px';
+            badge.style.background = 'rgba(0,0,0,0.8)';
+            badge.style.color = 'var(--accent-gold)';
+            badge.style.fontSize = '8px';
+            badge.style.fontWeight = 'bold';
+            badge.style.padding = '1px 3px';
+            badge.style.borderRadius = '2px';
+            if (idx === 0) badge.innerText = 'Main';
+            else if (idx === 1) badge.innerText = 'Hover';
+            else badge.innerText = `#${idx + 1}`;
+            
+            wrapper.appendChild(img);
+            wrapper.appendChild(badge);
+            container.appendChild(wrapper);
+        });
+    }
+
     function openProductModal() {
         document.getElementById('productModal').style.display = 'flex';
         document.getElementById('productForm').reset();
         document.getElementById('productId').value = '';
         document.getElementById('modalTitle').innerText = 'New Product';
         document.getElementById('variantsContainer').innerHTML = '';
+        document.getElementById('prodImageUrls').value = '';
+        document.getElementById('productImagesPreviewContainer').innerHTML = '';
         addVariantRow();
         loadCategories();
     }
@@ -207,6 +256,22 @@
         
         // Load collections and check them
         loadCategories(prod.collections || []);
+        
+        // Load existing image URLs
+        if (prod.images && prod.images.length > 0) {
+            const sortedImages = [...prod.images].sort((a, b) => {
+                if (a.is_main) return -1;
+                if (b.is_main) return 1;
+                if (a.is_hover) return -1;
+                if (b.is_hover) return 1;
+                return a.id - b.id;
+            });
+            const urls = sortedImages.map(img => img.image_url || img.image).filter(Boolean);
+            document.getElementById('prodImageUrls').value = urls.join('\n');
+        } else {
+            document.getElementById('prodImageUrls').value = '';
+        }
+        updateProductImagesPreview();
         
         // Build variants
         const vContainer = document.getElementById('variantsContainer');
@@ -258,27 +323,22 @@
     async function saveProduct(e) {
         e.preventDefault();
         
-        const formData = new FormData();
-        formData.append('name', document.getElementById('prodName').value);
-        formData.append('slug', document.getElementById('prodSlug').value);
-        formData.append('description', document.getElementById('prodDesc').value);
-        formData.append('short_description', document.getElementById('prodShortDesc').value);
-        formData.append('price', document.getElementById('prodPrice').value);
+        const id = document.getElementById('productId').value;
+        const name = document.getElementById('prodName').value;
+        const slug = document.getElementById('prodSlug').value;
+        const description = document.getElementById('prodDesc').value;
+        const short_description = document.getElementById('prodShortDesc').value;
+        const price = document.getElementById('prodPrice').value;
+        const discount_price = document.getElementById('prodDiscPrice').value || null;
+        const status = document.getElementById('prodStatus').value;
+        const tags = document.getElementById('prodTags').value;
         
-        const discPrice = document.getElementById('prodDiscPrice').value;
-        if(discPrice) formData.append('discount_price', discPrice);
+        const is_featured = document.getElementById('isFeatured').checked;
+        const is_bestseller = document.getElementById('isBestseller').checked;
+        const is_new_arrival = document.getElementById('isNewArrival').checked;
         
-
-        formData.append('status', document.getElementById('prodStatus').value);
-        formData.append('tags', document.getElementById('prodTags').value);
-        
-        formData.append('is_featured', document.getElementById('isFeatured').checked ? 'True' : 'False');
-        formData.append('is_bestseller', document.getElementById('isBestseller').checked ? 'True' : 'False');
-        formData.append('is_new_arrival', document.getElementById('isNewArrival').checked ? 'True' : 'False');
-        
-        // Categories
         const collectionCheckboxes = document.querySelectorAll('input[name="collections"]:checked');
-        collectionCheckboxes.forEach(cb => formData.append('collections', cb.value));
+        const collections = Array.from(collectionCheckboxes).map(cb => parseInt(cb.value));
 
         const variants = [];
         document.querySelectorAll('.variant-row').forEach(row => {
@@ -289,24 +349,39 @@
             const colors = colorsInput.split(',').map(c => c.trim()).filter(c => c);
             variants.push({ size, colors, stock });
         });
-        formData.append('variants', JSON.stringify(variants));
 
-        // Images
-        const imageFiles = document.getElementById('prodImages').files;
-        for(let i=0; i<imageFiles.length; i++){
-            formData.append('images', imageFiles[i]);
-        }
+        const urlsText = document.getElementById('prodImageUrls').value;
+        const images = urlsText.split('\n').map(u => u.trim()).filter(u => u);
+
+        const payload = {
+            name,
+            slug,
+            description,
+            short_description,
+            price,
+            discount_price,
+            status,
+            tags,
+            is_featured,
+            is_bestseller,
+            is_new_arrival,
+            collections,
+            variants,
+            images
+        };
 
         try {
-            const id = document.getElementById('productId').value;
             const method = id ? 'PATCH' : 'POST';
             const url = id ? `/api/v1/products/${id}/` : `/api/v1/products/`;
             
             const token = localStorage.getItem('oma_access_token');
             const res = await fetch(url, {
                 method: method,
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {

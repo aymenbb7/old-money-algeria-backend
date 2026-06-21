@@ -45,8 +45,18 @@
                 <input type="text" id="catSlug" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;">
             </div>
             <div style="margin-bottom: 1rem;">
-                <label>Hero Image Upload</label>
-                <input type="file" id="catImage" accept="image/*" style="width: 100%; margin-top: 0.5rem;">
+                <label>Thumbnail Image URL (for cards)</label>
+                <input type="text" id="catImageUrl" placeholder="https://images.unsplash.com/photo-... (thumbnail)" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;" oninput="updateCollectionPreviews()">
+                <div id="catThumbnailPreviewContainer" style="margin-top: 0.5rem; display: none;">
+                    <img id="catThumbnailPreview" src="" style="max-width: 100%; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);">
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label>Hero Image URL (for banner)</label>
+                <input type="text" id="catHeroImageUrl" placeholder="https://images.unsplash.com/photo-... (hero)" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;" oninput="updateCollectionPreviews()">
+                <div id="catHeroPreviewContainer" style="margin-top: 0.5rem; display: none;">
+                    <img id="catHeroPreview" src="" style="max-width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);">
+                </div>
             </div>
             <div style="margin-bottom: 1rem;">
                 <label>Display Order</label>
@@ -91,11 +101,38 @@
         }
     }
 
+    function updateCollectionPreviews() {
+        const thumbUrl = document.getElementById('catImageUrl').value.trim();
+        const heroUrl = document.getElementById('catHeroImageUrl').value.trim();
+
+        const thumbPreview = document.getElementById('catThumbnailPreview');
+        const thumbContainer = document.getElementById('catThumbnailPreviewContainer');
+        if (thumbUrl) {
+            thumbPreview.src = thumbUrl;
+            thumbContainer.style.display = 'block';
+        } else {
+            thumbContainer.style.display = 'none';
+        }
+
+        const heroPreview = document.getElementById('catHeroPreview');
+        const heroContainer = document.getElementById('catHeroPreviewContainer');
+        if (heroUrl) {
+            heroPreview.src = heroUrl;
+            heroContainer.style.display = 'block';
+        } else {
+            heroContainer.style.display = 'none';
+        }
+    }
+
     function openCategoryModal() {
         document.getElementById('categoryModal').style.display = 'flex';
-        document.getElementById('modalTitle').innerText = 'New Category';
+        document.getElementById('modalTitle').innerText = 'New Collection';
         document.getElementById('categoryForm').reset();
         document.getElementById('categoryId').value = '';
+        document.getElementById('catImageUrl').value = '';
+        document.getElementById('catHeroImageUrl').value = '';
+        document.getElementById('catThumbnailPreviewContainer').style.display = 'none';
+        document.getElementById('catHeroPreviewContainer').style.display = 'none';
     }
 
     function closeCategoryModal() {
@@ -109,6 +146,9 @@
         document.getElementById('catName').value = cat.name;
         document.getElementById('catSlug').value = cat.slug;
         document.getElementById('catOrder').value = cat.display_order || 0;
+        document.getElementById('catImageUrl').value = cat.image_url || cat.image || '';
+        document.getElementById('catHeroImageUrl').value = cat.hero_image_url || '';
+        updateCollectionPreviews();
     }
 
     function generateSlug() {
@@ -122,15 +162,17 @@
         const id = document.getElementById('categoryId').value;
         const name = document.getElementById('catName').value;
         const slug = document.getElementById('catSlug').value;
-        const imageInput = document.getElementById('catImage');
+        const display_order = document.getElementById('catOrder').value;
+        const image_url = document.getElementById('catImageUrl').value.trim();
+        const hero_image_url = document.getElementById('catHeroImageUrl').value.trim();
 
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('slug', slug);
-        formData.append('display_order', document.getElementById('catOrder').value);
-        if (imageInput.files[0]) {
-            formData.append('image', imageInput.files[0]);
-        }
+        const payload = {
+            name,
+            slug,
+            display_order,
+            image_url: image_url || null,
+            hero_image_url: hero_image_url || null
+        };
 
         const method = id ? 'PATCH' : 'POST';
         const url = id ? `collections/${id}/` : `collections/`;
@@ -139,8 +181,11 @@
             const token = localStorage.getItem('oma_access_token');
             const res = await fetch(`/api/v1/${url}`, {
                 method: method,
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {

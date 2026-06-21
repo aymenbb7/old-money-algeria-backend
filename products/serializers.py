@@ -3,31 +3,21 @@ from .models import Collection, Product, ProductImage, ProductVariant, Review
 
 class CollectionSerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
+    image = serializers.CharField(source='image_url', allow_null=True, required=False)
 
     class Meta:
         model = Collection
-        fields = ['id', 'name', 'slug', 'description', 'image', 'product_count', 'display_order']
+        fields = ['id', 'name', 'slug', 'description', 'image', 'image_url', 'hero_image_url', 'product_count', 'display_order']
 
     def get_product_count(self, obj):
         return obj.products.count()
-        
-    def get_image(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
 
 class ProductImageSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image = serializers.CharField(source='image_url')
 
     class Meta:
         model = ProductImage
-        fields = ['id', 'image', 'is_main', 'is_hover']
-        
-    def get_image(self, obj):
-        if obj.image:
-            return obj.image.url
-        return None
+        fields = ['id', 'image', 'image_url', 'is_main', 'is_hover']
 
 class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:

@@ -7,7 +7,8 @@ class Collection(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
-    image = CloudinaryField('image', folder='collections', blank=True, null=True)
+    image_url = models.URLField(max_length=1000, blank=True, null=True)
+    hero_image_url = models.URLField(max_length=1000, blank=True, null=True)
     display_order = models.IntegerField(default=0)
 
     class Meta:
@@ -63,7 +64,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = CloudinaryField('image', folder='products')
+    image_url = models.URLField(max_length=1000, blank=True, null=True)
     is_main = models.BooleanField(default=False)
     is_hover = models.BooleanField(default=False)
     
