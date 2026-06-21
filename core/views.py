@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from django.db.models import Sum, Count
 from django.utils import timezone
 from datetime import timedelta
-from .models import Wilaya, StoreSettings, HomepageContent
-from .serializers import WilayaSerializer, StoreSettingsSerializer, HomepageContentSerializer
+from .models import Wilaya, StoreSettings, HomepageContent, LookbookItem
+from .serializers import WilayaSerializer, StoreSettingsSerializer, HomepageContentSerializer, LookbookItemSerializer
 from orders.models import Order
 from products.models import Product, ProductVariant
 
@@ -60,6 +60,16 @@ class HomepageContentViewSet(viewsets.ModelViewSet):
             content = HomepageContent.objects.create()
         serializer = self.get_serializer(content)
         return Response({'results': [serializer.data]})
+
+class LookbookItemViewSet(viewsets.ModelViewSet):
+    queryset = LookbookItem.objects.all()
+    serializer_class = LookbookItemSerializer
+    pagination_class = None
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
 class AnalyticsAPIView(views.APIView):
     permission_classes = [permissions.IsAdminUser]

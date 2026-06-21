@@ -16,6 +16,9 @@ def dashboard_products(request):
 def dashboard_categories(request):
     return render(request, 'dashboard/categories.html')
 
+def dashboard_lookbook(request):
+    return render(request, 'dashboard/lookbook.html')
+
 def dashboard_wilayas(request):
     return render(request, 'dashboard/wilayas.html')
 

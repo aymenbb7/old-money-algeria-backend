@@ -64,3 +64,16 @@ class HomepageContent(models.Model):
         if not self.pk and HomepageContent.objects.exists():
             raise Exception('HomepageContent can only have one instance.')
         super().save(*args, **kwargs)
+
+class LookbookItem(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='lookbook/')
+    collection_slug = models.CharField(max_length=255, blank=True, null=True, help_text="Ex: chemises-premium")
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', '-id']
+
+    def __str__(self):
+        return self.title

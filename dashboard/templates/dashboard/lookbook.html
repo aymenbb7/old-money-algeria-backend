@@ -1,0 +1,207 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div class="card-header">
+    <h2 class="brand-font" style="color: var(--accent-gold);">Lookbook Management</h2>
+    <button class="btn-gold" onclick="openLookbookModal()"><i class="fas fa-plus"></i> Add Lookbook Item</button>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Image</th>
+                <th>Title</th>
+                <th>Collection</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="lookbookTableBody">
+            <!-- Populated via JS -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal -->
+<div id="lookbookModal" class="modal" style="display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); z-index: 1100; align-items: center; justify-content: center;">
+    <div style="background: var(--card-color); border: 1px solid var(--border-color); padding: 2rem; border-radius: 8px; width: 100%; max-width: 500px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 id="modalTitle" style="color: var(--accent-gold);" class="brand-font">Add Lookbook Item</h3>
+            <button onclick="closeLookbookModal()" style="background:none; border:none; color:var(--text-main); font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        
+        <form id="lookbookForm">
+            <input type="hidden" id="itemId">
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Title *</label>
+                <input type="text" id="itemTitle" required style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Description</label>
+                <textarea id="itemDesc" rows="3" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;"></textarea>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Image</label>
+                <input type="file" id="itemImage" accept="image/*" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+                <div id="imagePreview" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Collection Slug</label>
+                <input type="text" id="itemCollection" placeholder="Ex: chemises-premium" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+                <small style="color: var(--text-muted);">Slug of the collection to link to.</small>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted);">Order Number</label>
+                <input type="number" id="itemOrder" value="0" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 4px;">
+            </div>
+
+            <button type="submit" class="btn-gold" style="width: 100%;">Save Item</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentItems = [];
+
+    async function fetchItems() {
+        const data = await apiCall('lookbook/');
+        if (data) {
+            currentItems = data.results || data;
+            renderTable();
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('lookbookTableBody');
+        tbody.innerHTML = '';
+        currentItems.forEach(item => {
+            const img = item.image ? `<img src="${item.image}" alt="" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;">` : 'No Image';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.order}</td>
+                <td>${img}</td>
+                <td>${item.title}</td>
+                <td>${item.collection_slug || '-'}</td>
+                <td>
+                    <button onclick="editItem(${item.id})" style="background:none; border:none; color:var(--text-muted); cursor:pointer; margin-right: 10px;" title="Edit">
+                        <i class="fas fa-edit hover-gold"></i>
+                    </button>
+                    <button onclick="deleteItem(${item.id})" style="background:none; border:none; color:#ff4d4d; cursor:pointer;" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function openLookbookModal(item = null) {
+        document.getElementById('lookbookModal').style.display = 'flex';
+        const form = document.getElementById('lookbookForm');
+        form.reset();
+        document.getElementById('imagePreview').innerHTML = '';
+        
+        if (item) {
+            document.getElementById('modalTitle').innerText = 'Edit Lookbook Item';
+            document.getElementById('itemId').value = item.id;
+            document.getElementById('itemTitle').value = item.title;
+            document.getElementById('itemDesc').value = item.description || '';
+            document.getElementById('itemCollection').value = item.collection_slug || '';
+            document.getElementById('itemOrder').value = item.order;
+            
+            if (item.image) {
+                document.getElementById('imagePreview').innerHTML = `<img src="${item.image}" style="height: 100px; border-radius: 4px;">`;
+            }
+        } else {
+            document.getElementById('modalTitle').innerText = 'Add Lookbook Item';
+            document.getElementById('itemId').value = '';
+        }
+    }
+
+    function closeLookbookModal() {
+        document.getElementById('lookbookModal').style.display = 'none';
+    }
+
+    function editItem(id) {
+        const item = currentItems.find(c => c.id === id);
+        if(item) openLookbookModal(item);
+    }
+
+    async function deleteItem(id) {
+        if(confirm('Are you sure you want to delete this lookbook item?')) {
+            const res = await fetch(`/api/v1/lookbook/${id}/`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
+            });
+            if (res.ok) {
+                fetchItems();
+            } else {
+                alert('Error deleting item');
+            }
+        }
+    }
+
+    document.getElementById('lookbookForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('itemId').value;
+        const formData = new FormData();
+        
+        formData.append('title', document.getElementById('itemTitle').value);
+        formData.append('description', document.getElementById('itemDesc').value);
+        formData.append('collection_slug', document.getElementById('itemCollection').value);
+        formData.append('order', document.getElementById('itemOrder').value);
+        
+        const fileInput = document.getElementById('itemImage');
+        if (fileInput.files.length > 0) {
+            formData.append('image', fileInput.files[0]);
+        }
+
+        const url = id ? `/api/v1/lookbook/${id}/` : '/api/v1/lookbook/';
+        const method = id ? 'PATCH' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` },
+                body: formData
+            });
+
+            if (res.ok) {
+                closeLookbookModal();
+                fetchItems();
+            } else {
+                const data = await res.json();
+                alert('Error: ' + JSON.stringify(data));
+            }
+        } catch(err) {
+            console.error(err);
+            alert('An error occurred');
+        }
+    });
+
+    // Handle image preview
+    document.getElementById('itemImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('imagePreview').innerHTML = `<img src="${e.target.result}" style="height: 100px; border-radius: 4px;">`;
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', fetchItems);
+</script>
+<style>
+    .hover-gold:hover { color: var(--accent-gold); }
+</style>
+{% endblock %}
