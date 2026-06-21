@@ -42,10 +42,6 @@ class Product(models.Model):
     is_bestseller = models.BooleanField(default=False)
     is_new_arrival = models.BooleanField(default=False)
     
-    # SEO fields
-    meta_title = models.CharField(max_length=200, blank=True, null=True)
-    meta_description = models.TextField(blank=True, null=True)
-    
     # Simple tags as comma-separated values for now (could use django-taggit for robust tagging later)
     tags = models.CharField(max_length=255, blank=True, null=True, help_text="Comma-separated tags")
 

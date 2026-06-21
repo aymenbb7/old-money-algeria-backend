@@ -109,18 +109,6 @@
 
             <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
 
-            <h4 class="brand-font" style="margin-bottom: 1rem; color: var(--accent-gold);">SEO Settings</h4>
-            <div class="form-group">
-                <label>Meta Title</label>
-                <input type="text" id="metaTitle" class="form-control">
-            </div>
-            <div class="form-group">
-                <label>Meta Description</label>
-                <textarea id="metaDesc" class="form-control" rows="2"></textarea>
-            </div>
-
-            <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
-
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h4 class="brand-font" style="color: var(--accent-gold);">Variants (Sizes / Colors / Stock)</h4>
                 <button type="button" class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="addVariantRow()">+ Add Size</button>
@@ -236,12 +224,9 @@
         formData.append('is_bestseller', document.getElementById('isBestseller').checked ? 'True' : 'False');
         formData.append('is_new_arrival', document.getElementById('isNewArrival').checked ? 'True' : 'False');
         
-        formData.append('meta_title', document.getElementById('metaTitle').value);
-        formData.append('meta_description', document.getElementById('metaDesc').value);
-
         // Categories
-        const cats = Array.from(document.getElementById('prodCategory').selectedOptions).map(opt => parseInt(opt.value));
-        formData.append('collections', JSON.stringify(cats));
+        const cats = Array.from(document.getElementById('prodCategory').selectedOptions).map(opt => opt.value);
+        cats.forEach(c => formData.append('collections', c));
 
         const variants = [];
         document.querySelectorAll('.variant-row').forEach(row => {

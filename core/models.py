@@ -53,6 +53,9 @@ class HomepageContent(models.Model):
     promotional_banner_text = models.CharField(max_length=255, blank=True, null=True)
     promotional_banner_active = models.BooleanField(default=False)
 
+    collections_hero_title = models.CharField(max_length=255, blank=True, null=True)
+    collections_hero_image = models.ImageField(upload_to='homepage/', blank=True, null=True)
+
     class Meta:
         verbose_name = "Homepage Content"
         verbose_name_plural = "Homepage Content"

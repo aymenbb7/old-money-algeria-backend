@@ -1,35 +1,38 @@
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.base')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings.base")
 django.setup()
 
-from products.models import Product, ProductVariant, Collection
+from django.test import RequestFactory
+from products.views import ProductViewSet
+from products.models import Product, Collection
+from rest_framework.test import force_authenticate
+from users.models import User
+import json
 
-try:
-    c, _ = Collection.objects.get_or_create(name="Summer Collection", slug="summer-col")
-    
-    p = Product.objects.create(
-        name="Test Product 2",
-        slug="test-product-2",
-        description="A test product",
-        price=1500.00,
-        status="PUBLISHED"
-    )
-    
-    # Test our new view logic by manually calling what the view does
-    c_val = "summer-col"
-    from django.db.models import Q
-    col = Collection.objects.filter(Q(slug=c_val) | Q(name__iexact=c_val)).first()
-    if col:
-        p.collections.add(col.id)
-        
-    v = ProductVariant.objects.create(
-        product=p,
-        size="M",
-        color="Black",
-        stock=10
-    )
-    print("Product created successfully with collection:", p.collections.first().name)
-except Exception as e:
-    print(f"Error creating product: {e}")
+factory = RequestFactory()
+col, _ = Collection.objects.get_or_create(name="Test Collection", slug="test-collection")
+user, _ = User.objects.get_or_create(email='admin@test.com', is_staff=True, is_superuser=True)
+
+data = {
+    'name': 'API Test Product 3',
+    'description': 'Desc',
+    'price': '10.00',
+    'status': 'DRAFT',
+    'collections': ['test-collection', col.id]  
+}
+
+request = factory.post('/api/v1/products/', data=data, content_type='application/json')
+force_authenticate(request, user=user)
+
+view = ProductViewSet.as_view({'post': 'create'})
+response = view(request)
+print("Status:", response.status_code)
+if response.status_code == 201:
+    prod = Product.objects.get(id=response.data['id'])
+    print("Collections assigned:")
+    for c in prod.collections.all():
+        print("- ", c.name)
+else:
+    print(response.data)

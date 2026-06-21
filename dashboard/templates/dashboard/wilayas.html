@@ -34,10 +34,11 @@
 <script>
     async function fetchWilayas() {
         const data = await apiCall('wilayas/?limit=100'); // Fetch all 58
-        if (data && data.results) {
+        if (data) {
+            const items = data.results || data;
             const tbody = document.querySelector('#wilayasTable tbody');
             tbody.innerHTML = '';
-            data.results.forEach(w => {
+            items.forEach(w => {
                 tbody.innerHTML += `
                     <tr id="row-${w.code}">
                         <td>${w.code}</td>

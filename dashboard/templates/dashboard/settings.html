@@ -118,9 +118,19 @@
                         <label>Hero Background Image</label>
                         <input type="file" id="heroImg" class="form-control" accept="image/*">
                     </div>
+                    
+                    <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                        <label style="color: var(--accent-gold);">Collections Hero Title</label>
+                        <input type="text" id="collHeroTitle" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label style="color: var(--accent-gold);">Collections Hero Background</label>
+                        <input type="file" id="collHeroImg" class="form-control" accept="image/*">
+                        <small style="color:var(--text-muted);">If empty, falls back to Homepage Hero.</small>
+                    </div>
                 </div>
             </div>
-            <button type="submit" class="btn-save">Save Hero Banner</button>
+            <button type="submit" class="btn-save">Save Banners</button>
             <div style="clear:both;"></div>
         </form>
     </div>
@@ -133,7 +143,7 @@
     let heroId = null;
 
     async function loadConfig() {
-        const storeData = await apiCall('store-settings/');
+        const storeData = await apiCall('settings/');
         if (storeData && storeData.results && storeData.results.length > 0) {
             const s = storeData.results[0];
             settingsId = s.id;
@@ -155,6 +165,7 @@
             document.getElementById('heroSubtitle').value = h.hero_subtitle || '';
             document.getElementById('heroBtnText').value = h.hero_button_text || '';
             document.getElementById('heroBtnLink').value = h.hero_button_link || '';
+            document.getElementById('collHeroTitle').value = h.collections_hero_title || '';
         }
     }
 
@@ -181,7 +192,7 @@
 
         try {
             const token = localStorage.getItem('oma_access_token');
-            const res = await fetch(`/api/v1/store-settings/${settingsId}/`, {
+            const res = await fetch(`/api/v1/settings/${settingsId}/`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
@@ -202,8 +213,14 @@
         formData.append('hero_subtitle', document.getElementById('heroSubtitle').value);
         formData.append('hero_button_text', document.getElementById('heroBtnText').value);
         formData.append('hero_button_link', document.getElementById('heroBtnLink').value);
+        
+        formData.append('collections_hero_title', document.getElementById('collHeroTitle').value);
+
         const img = document.getElementById('heroImg').files[0];
         if(img) formData.append('hero_image', img);
+        
+        const collImg = document.getElementById('collHeroImg').files[0];
+        if(collImg) formData.append('collections_hero_image', collImg);
 
         try {
             const token = localStorage.getItem('oma_access_token');
