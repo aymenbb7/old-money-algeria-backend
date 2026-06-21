@@ -117,8 +117,18 @@ class ProductViewSet(viewsets.ModelViewSet):
                 variants_data = json.loads(variants_data)
             except:
                 variants_data = []
+        elif isinstance(variants_data, list) and len(variants_data) > 0 and isinstance(variants_data[0], str):
+            try:
+                variants_data = json.loads(variants_data[0])
+            except:
+                variants_data = []
                 
         for variant in variants_data:
+            if isinstance(variant, str):
+                try:
+                    variant = json.loads(variant)
+                except:
+                    continue
             ProductVariant.objects.create(
                 product=product,
                 size=variant.get('size'),

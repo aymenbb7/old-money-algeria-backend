@@ -1,4 +1,5 @@
 from django.db import models
+from cloudinary.models import CloudinaryField
 
 class Wilaya(models.Model):
     code = models.CharField(max_length=2, unique=True, primary_key=True)
@@ -44,7 +45,7 @@ class HomepageContent(models.Model):
     # Singleton Model
     hero_title = models.CharField(max_length=255, blank=True, null=True)
     hero_subtitle = models.TextField(blank=True, null=True)
-    hero_image = models.ImageField(upload_to='homepage/', blank=True, null=True)
+    hero_image = CloudinaryField('image', folder='homepage', blank=True, null=True)
     hero_button_text = models.CharField(max_length=50, blank=True, null=True)
     hero_button_link = models.CharField(max_length=255, blank=True, null=True)
 
@@ -54,7 +55,7 @@ class HomepageContent(models.Model):
     promotional_banner_active = models.BooleanField(default=False)
 
     collections_hero_title = models.CharField(max_length=255, blank=True, null=True)
-    collections_hero_image = models.ImageField(upload_to='homepage/', blank=True, null=True)
+    collections_hero_image = CloudinaryField('image', folder='homepage', blank=True, null=True)
 
     class Meta:
         verbose_name = "Homepage Content"
@@ -71,7 +72,7 @@ class HomepageContent(models.Model):
 class LookbookItem(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='lookbook/')
+    image = CloudinaryField('image', folder='lookbook')
     collection_slug = models.CharField(max_length=255, blank=True, null=True, help_text="Ex: chemises-premium")
     order = models.IntegerField(default=0)
 

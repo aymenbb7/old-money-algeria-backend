@@ -259,11 +259,19 @@
                 closeProductModal();
                 fetchProducts();
             } else {
-                const err = await res.json();
-                alert('Error saving product: ' + JSON.stringify(err));
+                const errText = await res.text();
+                try {
+                    const err = JSON.parse(errText);
+                    console.error("API Validation Error:", err);
+                    alert('Error saving product: ' + JSON.stringify(err));
+                } catch(e) {
+                    console.error("Server HTML Error:", errText);
+                    alert('Server error. Check console.');
+                }
             }
         } catch(err) {
-            alert('Network error');
+            console.error("Fetch Exception:", err);
+            alert('Network error: ' + err.message);
         }
     }
 
