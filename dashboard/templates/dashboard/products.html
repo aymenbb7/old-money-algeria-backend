@@ -151,7 +151,7 @@
                         <td>${prod.price} DZD</td>
                         <td><span class="status-badge ${statusClass}">${prod.status}</span></td>
                         <td>
-                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="alert('Edit works via API, frontend edit binding omitted for brevity')">Edit</button>
+                            <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick='editProduct(${JSON.stringify(prod).replace(/'/g, "&#39;")})'>Edit</button>
                             <button class="btn-gold" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: #ff4d4d;" onclick="deleteProduct(${prod.id})">Delete</button>
                         </td>
                     </tr>
@@ -160,15 +160,16 @@
         }
     }
 
-    async function loadCategories() {
+    async function loadCategories(selectedCollections = []) {
         const data = await apiCall('collections/');
         const container = document.getElementById('prodCategory');
         container.innerHTML = '';
         if(data && data.results) {
             data.results.forEach(c => {
+                const isChecked = selectedCollections.some(sc => sc.id === c.id || sc === c.id) ? 'checked' : '';
                 container.innerHTML += `
                     <label style="display: block; margin-bottom: 0.3rem;">
-                        <input type="checkbox" name="collections" value="${c.id}" style="margin-right: 0.5rem;"> ${c.name}
+                        <input type="checkbox" name="collections" value="${c.id}" ${isChecked} style="margin-right: 0.5rem;"> ${c.name}
                     </label>
                 `;
             });
@@ -178,13 +179,52 @@
     function openProductModal() {
         document.getElementById('productModal').style.display = 'flex';
         document.getElementById('productForm').reset();
+        document.getElementById('productId').value = '';
+        document.getElementById('modalTitle').innerText = 'New Product';
         document.getElementById('variantsContainer').innerHTML = '';
         addVariantRow();
         loadCategories();
     }
 
-    function closeProductModal() {
-        document.getElementById('productModal').style.display = 'none';
+    function editProduct(prod) {
+        document.getElementById('productModal').style.display = 'flex';
+        document.getElementById('productForm').reset();
+        document.getElementById('modalTitle').innerText = 'Edit Product';
+        document.getElementById('productId').value = prod.id;
+        
+        document.getElementById('prodName').value = prod.name;
+        document.getElementById('prodSlug').value = prod.slug;
+        document.getElementById('prodDesc').value = prod.description;
+        document.getElementById('prodShortDesc').value = prod.short_description || '';
+        document.getElementById('prodPrice').value = prod.price;
+        document.getElementById('prodDiscPrice').value = prod.discount_price || '';
+        document.getElementById('prodStatus').value = prod.status;
+        document.getElementById('prodTags').value = prod.tags || '';
+        
+        document.getElementById('isFeatured').checked = prod.is_featured;
+        document.getElementById('isBestseller').checked = prod.is_bestseller;
+        document.getElementById('isNewArrival').checked = prod.is_new_arrival;
+        
+        // Load collections and check them
+        loadCategories(prod.collections || []);
+        
+        // Build variants
+        const vContainer = document.getElementById('variantsContainer');
+        vContainer.innerHTML = '';
+        if (prod.variants && prod.variants.length > 0) {
+            // Group variants by size to combine colors
+            const grouped = {};
+            prod.variants.forEach(v => {
+                if(!grouped[v.size]) grouped[v.size] = { size: v.size, colors: [], stock: v.stock };
+                grouped[v.size].colors.push(v.color);
+            });
+            
+            Object.values(grouped).forEach(g => {
+                addVariantRow(g.size, g.colors.join(', '), g.stock);
+            });
+        } else {
+            addVariantRow();
+        }
     }
 
     function generateProdSlug() {
@@ -192,16 +232,24 @@
         document.getElementById('prodSlug').value = name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
     }
 
-    function addVariantRow() {
+    function closeProductModal() {
+        document.getElementById('productModal').style.display = 'none';
+    }
+
+    function addVariantRow(size = 'M', colors = '', stock = 0) {
         const container = document.getElementById('variantsContainer');
         const div = document.createElement('div');
         div.className = 'variant-row';
         div.innerHTML = `
             <select class="form-control variant-size">
-                <option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option><option value="XXL">XXL</option>
+                <option value="S" ${size==='S'?'selected':''}>S</option>
+                <option value="M" ${size==='M'?'selected':''}>M</option>
+                <option value="L" ${size==='L'?'selected':''}>L</option>
+                <option value="XL" ${size==='XL'?'selected':''}>XL</option>
+                <option value="XXL" ${size==='XXL'?'selected':''}>XXL</option>
             </select>
-            <input type="text" class="form-control variant-colors" placeholder="Noir, Blanc, Vert">
-            <input type="number" class="form-control variant-stock" placeholder="Stock per color" value="0" min="0">
+            <input type="text" class="form-control variant-colors" placeholder="Noir, Blanc, Vert" value="${colors}">
+            <input type="number" class="form-control variant-stock" placeholder="Stock per color" value="${stock}" min="0">
             <button type="button" class="btn-gold" style="background:#ff4d4d; padding:0.8rem;" onclick="this.parentElement.remove()">X</button>
         `;
         container.appendChild(div);
@@ -250,9 +298,13 @@
         }
 
         try {
+            const id = document.getElementById('productId').value;
+            const method = id ? 'PATCH' : 'POST';
+            const url = id ? `/api/v1/products/${id}/` : `/api/v1/products/`;
+            
             const token = localStorage.getItem('oma_access_token');
-            const res = await fetch(`/api/v1/products/`, {
-                method: 'POST',
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: formData
             });

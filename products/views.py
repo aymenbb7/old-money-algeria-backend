@@ -133,6 +133,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             colors = variant.get('colors', [])
             stock = variant.get('stock', 0)
             
+            if isinstance(colors, str):
+                colors = [c.strip() for c in colors.split(',') if c.strip()]
+                
             for color in colors:
                 ProductVariant.objects.create(
                     product=product,
