@@ -129,12 +129,17 @@ class ProductViewSet(viewsets.ModelViewSet):
                     variant = json.loads(variant)
                 except:
                     continue
-            ProductVariant.objects.create(
-                product=product,
-                size=variant.get('size'),
-                color=variant.get('color'),
-                stock=variant.get('stock', 0)
-            )
+            size = variant.get('size')
+            colors = variant.get('colors', [])
+            stock = variant.get('stock', 0)
+            
+            for color in colors:
+                ProductVariant.objects.create(
+                    product=product,
+                    size=size,
+                    color=color,
+                    stock=stock
+                )
 
 class CollectionViewSet(viewsets.ModelViewSet):
     queryset = Collection.objects.all()

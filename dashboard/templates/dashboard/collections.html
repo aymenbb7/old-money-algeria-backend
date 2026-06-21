@@ -2,27 +2,28 @@
 
 {% block content %}
 <div class="dashboard-header" style="margin-bottom: 2rem;">
-    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Categories</h1>
-    <p style="color: var(--text-muted);">Manage product collections and categories.</p>
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Collections</h1>
+    <p style="color: var(--text-muted);">Manage product collections and hero images.</p>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h3 class="brand-font">Category List</h3>
-        <button class="btn-gold" onclick="openCategoryModal()">+ New Category</button>
+        <h3 class="brand-font">Collection List</h3>
+        <button class="btn-gold" onclick="openCategoryModal()">+ New Collection</button>
     </div>
     <div style="overflow-x: auto;">
         <table id="categoriesTable">
             <thead>
                 <tr>
-                    <th>Image</th>
+                    <th></th> <!-- Drag handle -->
+                    <th>Hero Image</th>
                     <th>Name</th>
                     <th>Slug</th>
                     <th>Products</th>
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="sortableTbody">
                 <!-- Populated via JS -->
             </tbody>
         </table>
@@ -44,8 +45,12 @@
                 <input type="text" id="catSlug" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;">
             </div>
             <div style="margin-bottom: 1rem;">
-                <label>Image Upload</label>
+                <label>Hero Image Upload</label>
                 <input type="file" id="catImage" accept="image/*" style="width: 100%; margin-top: 0.5rem;">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label>Display Order</label>
+                <input type="number" id="catOrder" value="0" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;">
             </div>
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
                 <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeCategoryModal()">Cancel</button>
@@ -62,12 +67,15 @@
         // Categories uses the 'collections' API under the hood
         const data = await apiCall('collections/');
         if (data && data.results) {
-            const tbody = document.querySelector('#categoriesTable tbody');
+            // Sort by display_order
+            data.results.sort((a,b) => a.display_order - b.display_order);
+            const tbody = document.querySelector('#sortableTbody');
             tbody.innerHTML = '';
             data.results.forEach(cat => {
-                const imgStr = cat.image ? `<img src="${cat.image}" width="50" style="border-radius:4px;">` : 'No Image';
+                const imgStr = cat.image ? `<img src="${cat.image}" width="80" style="border-radius:4px; aspect-ratio: 16/9; object-fit: cover;">` : 'No Image';
                 tbody.innerHTML += `
-                    <tr>
+                    <tr draggable="true" data-id="${cat.id}" class="draggable-row" style="cursor: move;">
+                        <td style="color:var(--text-muted);">☰</td>
                         <td>${imgStr}</td>
                         <td>${cat.name}</td>
                         <td>${cat.slug}</td>
@@ -79,6 +87,7 @@
                     </tr>
                 `;
             });
+            initDragAndDrop();
         }
     }
 
@@ -95,10 +104,11 @@
 
     function editCategory(cat) {
         openCategoryModal();
-        document.getElementById('modalTitle').innerText = 'Edit Category';
+        document.getElementById('modalTitle').innerText = 'Edit Collection';
         document.getElementById('categoryId').value = cat.id;
         document.getElementById('catName').value = cat.name;
         document.getElementById('catSlug').value = cat.slug;
+        document.getElementById('catOrder').value = cat.display_order || 0;
     }
 
     function generateSlug() {
@@ -117,6 +127,7 @@
         const formData = new FormData();
         formData.append('name', name);
         formData.append('slug', slug);
+        formData.append('display_order', document.getElementById('catOrder').value);
         if (imageInput.files[0]) {
             formData.append('image', imageInput.files[0]);
         }
@@ -144,9 +155,80 @@
     }
 
     async function deleteCategory(id) {
-        if(confirm('Are you sure you want to delete this category?')) {
+        if(confirm('Are you sure you want to delete this collection?')) {
             await apiCall(`collections/${id}/`, 'DELETE');
             fetchCategories();
+        }
+    }
+
+    // Drag and Drop Logic
+    let draggedRow = null;
+
+    function initDragAndDrop() {
+        const rows = document.querySelectorAll('.draggable-row');
+        const tbody = document.getElementById('sortableTbody');
+
+        rows.forEach(row => {
+            row.addEventListener('dragstart', function(e) {
+                draggedRow = this;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => this.style.opacity = '0.5', 0);
+            });
+
+            row.addEventListener('dragend', function() {
+                this.style.opacity = '1';
+                draggedRow = null;
+                updateOrder();
+            });
+
+            row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+            });
+
+            row.addEventListener('dragenter', function(e) {
+                e.preventDefault();
+                this.style.background = 'rgba(212, 175, 55, 0.1)';
+            });
+
+            row.addEventListener('dragleave', function() {
+                this.style.background = '';
+            });
+
+            row.addEventListener('drop', function(e) {
+                this.style.background = '';
+                if (draggedRow !== this) {
+                    const allRows = Array.from(tbody.children);
+                    const draggedIndex = allRows.indexOf(draggedRow);
+                    const targetIndex = allRows.indexOf(this);
+                    if (draggedIndex < targetIndex) {
+                        this.after(draggedRow);
+                    } else {
+                        this.before(draggedRow);
+                    }
+                }
+            });
+        });
+    }
+
+    async function updateOrder() {
+        const rows = document.querySelectorAll('.draggable-row');
+        const updates = [];
+        rows.forEach((row, index) => {
+            const id = row.getAttribute('data-id');
+            updates.push({ id, display_order: index });
+        });
+
+        // Send individual PATCH requests
+        const token = localStorage.getItem('oma_access_token');
+        for (const update of updates) {
+            await fetch(`/api/v1/collections/${update.id}/`, {
+                method: 'PATCH',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ display_order: update.display_order })
+            });
         }
     }
 

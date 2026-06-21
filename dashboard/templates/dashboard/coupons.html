@@ -9,7 +9,7 @@
 <div class="card">
     <div class="card-header">
         <h3 class="brand-font">Active Coupons</h3>
-        <button class="btn-gold" onclick="alert('Create modal coming soon')">+ New Coupon</button>
+        <button class="btn-gold" onclick="openCouponModal()">+ New Coupon</button>
     </div>
     <div style="overflow-x: auto;">
         <table id="couponsTable">
@@ -28,6 +28,58 @@
                 <!-- Populated via JS -->
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Coupon Modal -->
+<div id="couponModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 500px; margin: auto;">
+        <h3 class="brand-font" style="margin-bottom: 1.5rem; color: var(--accent-gold);">New Coupon</h3>
+        <form id="couponForm" onsubmit="saveCoupon(event)">
+            <div style="margin-bottom: 1rem;">
+                <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Code</label>
+                <input type="text" id="couponCode" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px; text-transform:uppercase;" required>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Discount Type</label>
+                    <select id="couponType" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px;">
+                        <option value="PERCENTAGE">Percentage</option>
+                        <option value="FIXED">Fixed Amount</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Value</label>
+                    <input type="number" id="couponValue" step="0.01" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px;" required>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Min Order Amount</label>
+                    <input type="number" id="couponMinOrder" step="0.01" value="0" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px;">
+                </div>
+                <div>
+                    <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Usage Limit (0 for unlim)</label>
+                    <input type="number" id="couponLimit" value="0" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display:block; color:var(--text-muted); margin-bottom:0.4rem; font-size:0.9rem;">Expiration Date (Optional)</label>
+                <input type="date" id="couponExpiry" style="width:100%; padding:0.8rem; background:var(--bg-color); border:1px solid var(--border-color); color:var(--text-main); border-radius:4px;">
+            </div>
+
+            <label style="display:block; margin-bottom: 1.5rem;">
+                <input type="checkbox" id="couponActive" checked style="margin-right: 0.5rem;"> Is Active
+            </label>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeCouponModal()">Cancel</button>
+                <button type="submit" class="btn-gold">Save Coupon</button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
@@ -55,6 +107,40 @@
                     </tr>
                 `;
             });
+        }
+    }
+
+    function openCouponModal() {
+        document.getElementById('couponModal').style.display = 'flex';
+        document.getElementById('couponForm').reset();
+    }
+
+    function closeCouponModal() {
+        document.getElementById('couponModal').style.display = 'none';
+    }
+
+    async function saveCoupon(e) {
+        e.preventDefault();
+        const code = document.getElementById('couponCode').value.toUpperCase();
+        const discount_type = document.getElementById('couponType').value;
+        const value = document.getElementById('couponValue').value;
+        const min_order_amount = document.getElementById('couponMinOrder').value || 0;
+        const usage_limit = document.getElementById('couponLimit').value || 0;
+        let expiration_date = document.getElementById('couponExpiry').value;
+        const is_active = document.getElementById('couponActive').checked;
+
+        if (!expiration_date) expiration_date = null;
+
+        const payload = {
+            code, discount_type, value, min_order_amount, usage_limit, expiration_date, is_active
+        };
+
+        const res = await apiCall('coupons/', 'POST', payload);
+        if (res && res.id) {
+            closeCouponModal();
+            fetchCoupons();
+        } else {
+            alert('Failed to save coupon. It may already exist or have invalid data.');
         }
     }
 

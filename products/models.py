@@ -1,12 +1,17 @@
 from django.db import models
 from django.utils.text import slugify
 from django.core.validators import MinValueValidator, MaxValueValidator
+from cloudinary.models import CloudinaryField
 
 class Collection(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='collections/', blank=True, null=True)
+    image = CloudinaryField('image', folder='collections', blank=True, null=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order', 'id']
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -58,7 +63,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-    image = models.ImageField(upload_to='products/')
+    image = CloudinaryField('image', folder='products')
     is_main = models.BooleanField(default=False)
     is_hover = models.BooleanField(default=False)
     
