@@ -43,7 +43,7 @@ class StoreSettingsViewSet(viewsets.ModelViewSet):
         if not settings:
             settings = StoreSettings.objects.create()
         serializer = self.get_serializer(settings)
-        return Response(serializer.data)
+        return Response({'results': [serializer.data]})
 
 class HomepageContentViewSet(viewsets.ModelViewSet):
     queryset = HomepageContent.objects.all()
@@ -59,7 +59,7 @@ class HomepageContentViewSet(viewsets.ModelViewSet):
         if not content:
             content = HomepageContent.objects.create()
         serializer = self.get_serializer(content)
-        return Response(serializer.data)
+        return Response({'results': [serializer.data]})
 
 class AnalyticsAPIView(views.APIView):
     permission_classes = [permissions.IsAdminUser]

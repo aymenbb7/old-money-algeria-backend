@@ -34,7 +34,6 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
-    sku = models.CharField(max_length=100, unique=True)
     weight = models.DecimalField(max_digits=6, decimal_places=2, default=0.00, help_text="Weight in kg")
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')

@@ -13,7 +13,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'variants', 'collections')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'is_featured', 'is_bestseller', 'is_new_arrival', 'collections__slug']
-    search_fields = ['name', 'description', 'sku', 'tags']
+    search_fields = ['name', 'description', 'tags']
     ordering_fields = ['price', 'created_at']
 
     def get_serializer_class(self):
@@ -38,8 +38,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         if collections_data:
             if isinstance(collections_data, str):
                 collections_data = json.loads(collections_data)
-            for c_id in collections_data:
-                product.collections.add(c_id)
+            
+            from django.db.models import Q
+            for c_val in collections_data:
+                try:
+                    c_id = int(c_val)
+                    product.collections.add(c_id)
+                except (ValueError, TypeError):
+                    col = Collection.objects.filter(Q(slug=c_val) | Q(name__iexact=c_val)).first()
+                    if col:
+                        product.collections.add(col.id)
 
         # Handle Variants
         variants_data = data.get('variants')
