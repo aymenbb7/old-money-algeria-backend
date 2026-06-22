@@ -164,7 +164,7 @@ class ImageUploadView(views.APIView):
         try:
             res = cloudinary.uploader.unsigned_upload(
                 file_obj,
-                upload_preset="old_money_uploads",
+                upload_preset="old_money_algeria",
                 folder="old_money_algeria"
             )
             secure_url = res.get('secure_url')
