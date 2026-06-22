@@ -17,6 +17,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     filterset_fields = ['status', 'wilaya', 'is_home_delivery']
     search_fields = ['order_number', 'guest_name', 'guest_phone']
     ordering_fields = ['created_at', 'total_amount']
+    ordering = ['-created_at']
 
     def get_permissions(self):
         if self.action in ['create', 'checkout', 'track']:

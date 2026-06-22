@@ -61,6 +61,9 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['-created_at']
+
     def save(self, *args, **kwargs):
         if not self.order_number:
             self.order_number = "OMA-" + get_random_string(8).upper()

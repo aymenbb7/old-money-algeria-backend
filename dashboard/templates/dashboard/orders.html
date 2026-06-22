@@ -118,7 +118,9 @@
         const query = statusFilter ? `?status=${statusFilter}` : '';
         const data = await apiCall(`orders/${query}`);
         if (data && data.results) {
-            ordersList = data.results;
+            const delivered = data.results.filter(o => o.status === 'DELIVERED');
+            const others = data.results.filter(o => o.status !== 'DELIVERED');
+            ordersList = [...others, ...delivered];
             renderOrders();
         }
     }
