@@ -6,11 +6,12 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet, ImageUploadView
-from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet
+from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet, ProductImageViewSet
 from orders.views import OrderViewSet, CouponViewSet
 from users.views import UserViewSet, CustomerProfileViewSet
 
 router = DefaultRouter()
+router.register(r'products/images', ProductImageViewSet, basename='product-images')
 router.register(r'products', ProductViewSet)
 router.register(r'collections', CollectionViewSet)
 router.register(r'reviews', ReviewViewSet)

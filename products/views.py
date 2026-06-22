@@ -6,8 +6,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Product, Collection, Review, ProductVariant, ProductImage
 from .serializers import (
     ProductSerializer, ProductCreateUpdateSerializer,
-    CollectionSerializer, ReviewSerializer
+    CollectionSerializer, ReviewSerializer, ProductImageSerializer
 )
+from rest_framework.decorators import action
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().prefetch_related('images', 'variants', 'collections')
@@ -32,6 +33,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         collections_data = data.pop('collections', None)
         variants_data = data.pop('variants', None)
         images_data = data.pop('images', None)
+        image_urls = data.pop('image_urls', None)
         
         serializer = ProductCreateUpdateSerializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -39,7 +41,10 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         self._handle_collections(product, collections_data)
         self._handle_variants(product, variants_data)
-        self._handle_images(product, images_data)
+        
+        # In create, use image_urls array if provided
+        urls_to_handle = image_urls if image_urls is not None else images_data
+        self._handle_images(product, urls_to_handle)
 
         return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
 
@@ -49,22 +54,23 @@ class ProductViewSet(viewsets.ModelViewSet):
         data = request.data.copy() if hasattr(request.data, 'copy') else request.data
         collections_data = data.pop('collections', None)
         variants_data = data.pop('variants', None)
-        images_data = data.pop('images', None)
+        # Completely ignore images and image_urls on update
+        data.pop('images', None)
+        data.pop('image_urls', None)
         
-        serializer = ProductCreateUpdateSerializer(product, data=data, partial=kwargs.get('partial', False))
+        serializer = ProductCreateUpdateSerializer(product, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
 
         if collections_data is not None:
+            product.collections.clear()
             self._handle_collections(product, collections_data)
             
         if variants_data is not None:
             product.variants.all().delete()
             self._handle_variants(product, variants_data)
 
-        if images_data is not None:
-            self._handle_images(product, images_data)
-
+        # Do not call _handle_images on update
         return Response(ProductSerializer(product).data)
 
     def _handle_images(self, product, images_data):
@@ -181,3 +187,43 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(customer=self.request.user)
+
+class ProductImageViewSet(viewsets.ModelViewSet):
+    queryset = ProductImage.objects.all()
+    serializer_class = ProductImageSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def create(self, request, *args, **kwargs):
+        product_id = request.data.get('product')
+        image_url = request.data.get('image_url')
+        
+        if not product_id or not image_url:
+            return Response({'detail': 'product and image_url are required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response({'detail': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        is_main = not product.images.filter(is_main=True).exists()
+        
+        img = ProductImage.objects.create(
+            product=product,
+            image_url=image_url,
+            is_main=is_main
+        )
+        return Response(ProductImageSerializer(img).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='set-main')
+    def set_main(self, request, pk=None):
+        img = self.get_object()
+        product = img.product
+        
+        # Set all to false
+        product.images.all().update(is_main=False)
+        
+        # Set this one to true
+        img.is_main = True
+        img.save()
+        
+        return Response(ProductImageSerializer(img).data)

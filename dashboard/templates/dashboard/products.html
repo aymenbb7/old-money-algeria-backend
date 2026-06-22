@@ -9,6 +9,8 @@
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
     
     .variant-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+    .img-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+    @media (max-width: 768px) { .img-grid { grid-template-columns: repeat(3, 1fr); } }
 </style>
 
 <div class="dashboard-header" style="margin-bottom: 2rem;">
@@ -120,34 +122,33 @@
             <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
 
             <h4 class="brand-font" style="margin-bottom: 1rem; color: var(--accent-gold);">Images</h4>
-            <div style="display: flex; gap: 1rem; margin-bottom: 0.8rem;">
-                <label style="cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
-                    <input type="radio" name="prodImageMode" value="url" checked onchange="toggleProdImageMode('url')"> Saisir des URLs
-                </label>
-                <label style="cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
-                    <input type="radio" name="prodImageMode" value="file" onchange="toggleProdImageMode('file')"> Téléverser des fichiers
-                </label>
-            </div>
             
-            <div class="form-group" id="prodImageUrlContainer">
-                <label>Product Image URLs (one per line)</label>
-                <textarea id="prodImageUrls" class="form-control" rows="4" placeholder="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&#10;https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800" oninput="updateProductImagesPreview()"></textarea>
-            </div>
-            
-            <div class="form-group" id="prodImageFileContainer" style="display:none;">
-                <label>Sélectionner des fichiers images</label>
-                <input type="file" id="prodImageFiles" class="form-control" multiple accept="image/*" onchange="uploadProductFiles()">
-                <div id="prodUploadStatus" style="color:var(--accent-gold); font-size:0.9rem; margin-top:0.3rem;"></div>
+            <!-- Current Images Grid -->
+            <div id="productImagesGrid" class="img-grid">
+                <!-- Filled via JS -->
             </div>
 
-            <div style="margin-bottom: 1rem;">
-                <small style="color:var(--text-muted);">
-                    First URL = Main Image (is_main=True)<br>
-                    Second URL = Hover Image (is_hover=True)<br>
-                    Rest = Additional Images
-                </small>
+            <!-- Add New Image Section -->
+            <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: 4px; margin-bottom: 1.5rem;">
+                <h5 class="brand-font" style="margin-top: 0; margin-bottom: 1rem;">Ajouter une image</h5>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <button type="button" class="btn-gold" id="tabBtnUrl" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="switchImageTab('url')">URL</button>
+                    <button type="button" class="btn-gold" id="tabBtnUpload" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: var(--accent-gold); border: 1px solid var(--accent-gold);" onclick="switchImageTab('upload')">Téléverser</button>
+                </div>
+
+                <div id="tabUrl" style="display: block;">
+                    <input type="text" id="newImageUrl" class="form-control" placeholder="https://res.cloudinary.com/... ou https://images.unsplash.com/..." style="margin-bottom: 0.5rem;">
+                    <div id="urlError" style="color: #ff4d4d; font-size: 0.8rem; margin-bottom: 0.5rem; display: none;">URL d'image invalide. Utilisez cloudinary.com, unsplash.com/photos ou une URL se terminant par .jpg, .png, .webp</div>
+                    <div id="urlWarning" style="color: var(--accent-gold); font-size: 0.8rem; margin-bottom: 0.5rem; display: none;">Attention: Utilisez l'URL directe de l'image.</div>
+                    <button type="button" class="btn-gold" onclick="addImageUrl()">Ajouter</button>
+                </div>
+
+                <div id="tabUpload" style="display: none;">
+                    <input type="file" id="newImageFile" class="form-control" accept="image/*" style="margin-bottom: 0.5rem;">
+                    <div id="uploadStatus" style="color: var(--accent-gold); font-size: 0.8rem; margin-bottom: 0.5rem; display: none;"></div>
+                    <button type="button" class="btn-gold" onclick="uploadNewImage()">Téléverser</button>
+                </div>
             </div>
-            <div id="productImagesPreviewContainer" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; margin-bottom: 1.5rem;"></div>
 
             <div style="display: flex; gap: 1rem; margin-top: 2rem; justify-content: flex-end;">
                 <button type="button" class="btn-gold" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-main);" onclick="closeProductModal()">Cancel</button>
@@ -170,7 +171,19 @@
                 tbody.innerHTML += `
                     <tr>
 
-                        <td>${prod.name}</td>
+                        <td>
+                            <div style="display: flex; align-items: center;">
+                                ${(() => {
+                                    const mainImg = prod.images && prod.images.length > 0 ? (prod.images.find(i => i.is_main) || prod.images[0]).image_url : null;
+                                    if (mainImg) {
+                                        return `<img src="${mainImg}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; margin-right: 10px; vertical-align: middle;">`;
+                                    } else {
+                                        return `<div style="width: 40px; height: 40px; background: #0B4D2B; color: var(--accent-gold); display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; margin-right: 10px; vertical-align: middle; font-weight: bold; font-family: 'Playfair Display', serif; font-size: 14px;">OM</div>`;
+                                    }
+                                })()}
+                                ${prod.name}
+                            </div>
+                        </td>
                         <td>${prod.price} DZD</td>
                         <td><span class="status-badge ${statusClass}">${prod.status}</span></td>
                         <td>
@@ -199,106 +212,185 @@
         }
     }
 
-    function updateProductImagesPreview() {
-        const container = document.getElementById('productImagesPreviewContainer');
-        container.innerHTML = '';
-        const urlsText = document.getElementById('prodImageUrls').value;
-        const urls = urlsText.split('\n').map(u => u.trim()).filter(u => u);
-        urls.forEach((url, idx) => {
-            const wrapper = document.createElement('div');
-            wrapper.style.position = 'relative';
-            wrapper.style.width = '80px';
-            wrapper.style.height = '80px';
-            wrapper.style.border = '1px solid var(--border-color)';
-            wrapper.style.borderRadius = '4px';
-            wrapper.style.overflow = 'hidden';
-            wrapper.style.background = '#1a1a1a';
+    let currentProductImages = [];
+    let currentEditingProductId = null;
+
+    function renderImagesGrid() {
+        const grid = document.getElementById('productImagesGrid');
+        grid.innerHTML = '';
+        
+        currentProductImages.forEach((img, index) => {
+            const item = document.createElement('div');
+            item.style.position = 'relative';
+            item.style.aspectRatio = '1';
+            item.style.border = '1px solid var(--border-color)';
+            item.style.borderRadius = '4px';
+            item.style.overflow = 'hidden';
+            item.style.background = '#1a1a1a';
             
-            const img = document.createElement('img');
-            img.src = url;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            img.onerror = () => { img.style.display = 'none'; };
+            const fallbackHtml = `<div style="width: 100%; height: 100%; background: #0B4D2B; color: var(--accent-gold); display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: 'Playfair Display', serif; font-size: 1.5rem;">OM</div>`;
+            const imgHtml = `<img src="${img.image_url}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.outerHTML=decodeURIComponent('${encodeURIComponent(fallbackHtml)}')">`;
             
-            const badge = document.createElement('span');
-            badge.style.position = 'absolute';
-            badge.style.bottom = '2px';
-            badge.style.left = '2px';
-            badge.style.background = 'rgba(0,0,0,0.8)';
-            badge.style.color = 'var(--accent-gold)';
-            badge.style.fontSize = '8px';
-            badge.style.fontWeight = 'bold';
-            badge.style.padding = '1px 3px';
-            badge.style.borderRadius = '2px';
-            if (idx === 0) badge.innerText = 'Main';
-            else if (idx === 1) badge.innerText = 'Hover';
-            else badge.innerText = `#${idx + 1}`;
+            const badgeHtml = img.is_main ? '<span style="position: absolute; top: 5px; left: 5px; background: #28a745; color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Principal</span>' : '';
             
-            wrapper.appendChild(img);
-            wrapper.appendChild(badge);
-            container.appendChild(wrapper);
+            const starColor = img.is_main ? 'var(--accent-gold)' : '#666';
+            const starTextColor = img.is_main ? '#000' : '#fff';
+            
+            const idParam = img.id ? `'${img.id}'` : 'null';
+            const btnHtml = `
+                <div style="position: absolute; bottom: 5px; right: 5px; display: flex; gap: 5px;">
+                    <button type="button" onclick="setMainImage(${idParam}, ${index})" style="background: ${starColor}; color: ${starTextColor}; border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-size: 12px; line-height: 1;" title="Set as Main">★</button>
+                    <button type="button" onclick="deleteImage(${idParam}, ${index})" style="background: #333; color: #fff; border: none; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-size: 12px; line-height: 1;" onmouseover="this.style.background='#ff4d4d'" onmouseout="this.style.background='#333'" title="Delete">✕</button>
+                </div>
+            `;
+            
+            item.innerHTML = imgHtml + badgeHtml + btnHtml;
+            grid.appendChild(item);
         });
     }
 
-    function toggleProdImageMode(mode) {
-        if (mode === 'url') {
-            document.getElementById('prodImageUrlContainer').style.display = 'block';
-            document.getElementById('prodImageFileContainer').style.display = 'none';
+    function switchImageTab(tab) {
+        if (tab === 'url') {
+            document.getElementById('tabUrl').style.display = 'block';
+            document.getElementById('tabUpload').style.display = 'none';
+            document.getElementById('tabBtnUrl').style.background = 'var(--accent-gold)';
+            document.getElementById('tabBtnUrl').style.color = '#000';
+            document.getElementById('tabBtnUpload').style.background = 'transparent';
+            document.getElementById('tabBtnUpload').style.color = 'var(--accent-gold)';
         } else {
-            document.getElementById('prodImageUrlContainer').style.display = 'none';
-            document.getElementById('prodImageFileContainer').style.display = 'block';
+            document.getElementById('tabUrl').style.display = 'none';
+            document.getElementById('tabUpload').style.display = 'block';
+            document.getElementById('tabBtnUpload').style.background = 'var(--accent-gold)';
+            document.getElementById('tabBtnUpload').style.color = '#000';
+            document.getElementById('tabBtnUrl').style.background = 'transparent';
+            document.getElementById('tabBtnUrl').style.color = 'var(--accent-gold)';
         }
     }
 
-    async function uploadProductFiles() {
-        const fileInput = document.getElementById('prodImageFiles');
-        const statusDiv = document.getElementById('prodUploadStatus');
-        const urlsTextarea = document.getElementById('prodImageUrls');
+    function isValidImageUrl(url) {
+        if (!url) return false;
+        const lowerUrl = url.toLowerCase();
+        if (lowerUrl.includes('res.cloudinary.com')) return true;
+        if (lowerUrl.includes('cloudinary.com')) return true;
+        if (lowerUrl.includes('images.unsplash.com')) return true;
+        if (lowerUrl.includes('unsplash.com/photos')) return true;
+        
+        if (/\.(jpg|jpeg|png|webp)(\?.*)?$/.test(lowerUrl)) return true;
+        
+        return false;
+    }
+
+    async function addImageUrl() {
+        const urlInput = document.getElementById('newImageUrl');
+        const url = urlInput.value.trim();
+        const errDiv = document.getElementById('urlError');
+        const warnDiv = document.getElementById('urlWarning');
+        
+        errDiv.style.display = 'none';
+        warnDiv.style.display = 'none';
+        
+        if (!isValidImageUrl(url)) {
+            errDiv.style.display = 'block';
+            return;
+        }
+        
+        if (url.toLowerCase().includes('unsplash.com/photos')) {
+            warnDiv.style.display = 'block';
+        }
+        
+        await saveNewImage(url);
+        urlInput.value = '';
+    }
+
+    async function uploadNewImage() {
+        const fileInput = document.getElementById('newImageFile');
+        const statusDiv = document.getElementById('uploadStatus');
         const token = localStorage.getItem('oma_access_token');
         
         if (!fileInput.files.length) return;
         
-        statusDiv.innerText = `Téléversement de ${fileInput.files.length} image(s)...`;
+        const file = fileInput.files[0];
+        statusDiv.style.display = 'block';
+        statusDiv.innerText = `Téléversement en cours...`;
         
-        const uploadedUrls = [];
-        for (let i = 0; i < fileInput.files.length; i++) {
-            const file = fileInput.files[i];
-            const formData = new FormData();
-            formData.append('image', file);
-            
-            try {
-                const res = await fetch('/api/v1/upload-image/', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    uploadedUrls.push(data.url);
-                } else {
-                    const errData = await res.json().catch(() => ({error: 'Network error'}));
-                    console.error("Upload failed for file", file.name, errData);
-                    statusDiv.innerHTML = `<span style="color:red">Erreur du serveur: ${errData.error || errData.detail || 'Erreur Inconnue'}</span>`;
-                    return;
-                }
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerHTML = `<span style="color:red">Erreur réseau: ${err.message}</span>`;
-                return;
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+            const res = await fetch('/api/v1/upload-image/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                statusDiv.innerText = `Succès!`;
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
+                await saveNewImage(data.url);
+                fileInput.value = '';
+            } else {
+                statusDiv.innerHTML = `<span style="color:red">Erreur serveur</span>`;
             }
+        } catch (err) {
+            statusDiv.innerHTML = `<span style="color:red">Erreur réseau</span>`;
         }
-        
-        if (uploadedUrls.length > 0) {
-            let currentText = urlsTextarea.value.trim();
-            if (currentText) currentText += '\n';
-            urlsTextarea.value = currentText + uploadedUrls.join('\n');
-            updateProductImagesPreview();
-            statusDiv.innerText = `${uploadedUrls.length} image(s) téléversée(s) avec succès.`;
+    }
+
+    async function saveNewImage(url) {
+        if (currentEditingProductId) {
+            // Existing product, API call
+            const res = await apiCall(`products/images/`, 'POST', {
+                product: currentEditingProductId,
+                image_url: url
+            });
+            if (res && !res.error) {
+                currentProductImages.push(res);
+                renderImagesGrid();
+                fetchProducts(); // Update table thumbnail
+            } else {
+                alert("Error saving image.");
+            }
         } else {
-            statusDiv.innerText = `Échec du téléversement.`;
+            // New product, local array
+            const isMain = currentProductImages.length === 0;
+            currentProductImages.push({
+                id: null,
+                image_url: url,
+                is_main: isMain
+            });
+            renderImagesGrid();
         }
-        fileInput.value = ''; // Reset file input
+    }
+
+    async function setMainImage(imgId, index) {
+        if (currentEditingProductId && imgId) {
+            const res = await apiCall(`products/images/${imgId}/set-main/`, 'PATCH');
+            if (res && !res.error) {
+                currentProductImages.forEach(i => i.is_main = false);
+                const idx = currentProductImages.findIndex(i => i.id == imgId);
+                if (idx >= 0) currentProductImages[idx].is_main = true;
+                renderImagesGrid();
+                fetchProducts(); // Update table thumbnail
+            }
+        } else {
+            currentProductImages.forEach(i => i.is_main = false);
+            currentProductImages[index].is_main = true;
+            renderImagesGrid();
+        }
+    }
+
+    async function deleteImage(imgId, index) {
+        if (!confirm("Delete this image?")) return;
+        
+        if (currentEditingProductId && imgId) {
+            await apiCall(`products/images/${imgId}/`, 'DELETE');
+            currentProductImages = currentProductImages.filter(i => i.id != imgId);
+            renderImagesGrid();
+            fetchProducts();
+        } else {
+            currentProductImages.splice(index, 1);
+            renderImagesGrid();
+        }
     }
 
     function openProductModal() {
@@ -307,14 +399,14 @@
         document.getElementById('productId').value = '';
         document.getElementById('modalTitle').innerText = 'New Product';
         document.getElementById('variantsContainer').innerHTML = '';
-        document.getElementById('prodImageUrls').value = '';
-        document.getElementById('productImagesPreviewContainer').innerHTML = '';
+        
+        currentEditingProductId = null;
+        currentProductImages = [];
+        renderImagesGrid();
+        switchImageTab('url');
+        
         addVariantRow();
         loadCategories();
-        
-        // Reset image mode
-        document.getElementsByName('prodImageMode')[0].checked = true;
-        toggleProdImageMode('url');
     }
 
     function editProduct(prod) {
@@ -323,9 +415,10 @@
         document.getElementById('modalTitle').innerText = 'Edit Product';
         document.getElementById('productId').value = prod.id;
         
-        // Reset image mode
-        document.getElementsByName('prodImageMode')[0].checked = true;
-        toggleProdImageMode('url');
+        currentEditingProductId = prod.id;
+        currentProductImages = prod.images ? [...prod.images].sort((a,b) => b.is_main - a.is_main) : [];
+        renderImagesGrid();
+        switchImageTab('url');
         
         document.getElementById('prodName').value = prod.name;
         document.getElementById('prodSlug').value = prod.slug;
@@ -342,22 +435,6 @@
         
         // Load collections and check them
         loadCategories(prod.collections || []);
-        
-        // Load existing image URLs
-        if (prod.images && prod.images.length > 0) {
-            const sortedImages = [...prod.images].sort((a, b) => {
-                if (a.is_main) return -1;
-                if (b.is_main) return 1;
-                if (a.is_hover) return -1;
-                if (b.is_hover) return 1;
-                return a.id - b.id;
-            });
-            const urls = sortedImages.map(img => img.image_url || img.image).filter(Boolean);
-            document.getElementById('prodImageUrls').value = urls.join('\n');
-        } else {
-            document.getElementById('prodImageUrls').value = '';
-        }
-        updateProductImagesPreview();
         
         // Build variants
         const vContainer = document.getElementById('variantsContainer');
@@ -436,9 +513,6 @@
             variants.push({ size, colors, stock });
         });
 
-        const urlsText = document.getElementById('prodImageUrls').value;
-        const images = urlsText.split('\n').map(u => u.trim()).filter(u => u);
-
         const payload = {
             name,
             slug,
@@ -452,9 +526,12 @@
             is_bestseller,
             is_new_arrival,
             collections,
-            variants,
-            images
+            variants
         };
+        
+        if (!id) {
+            payload.image_urls = currentProductImages.map(img => img.image_url);
+        }
 
         try {
             const method = id ? 'PATCH' : 'POST';
