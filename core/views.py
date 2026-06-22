@@ -136,9 +136,22 @@ class AnalyticsAPIView(views.APIView):
         })
 
 import cloudinary.uploader
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 class ImageUploadView(views.APIView):
     permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        import cloudinary
+        config = cloudinary.config()
+        return Response({
+            'cloud_name': config.cloud_name,
+            'api_key_configured': bool(config.api_key),
+            'api_secret_configured': bool(config.api_secret),
+        }, status=status.HTTP_200_OK)
 
     def post(self, request):
         if 'image' not in request.FILES:
@@ -150,4 +163,10 @@ class ImageUploadView(views.APIView):
             secure_url = res.get('secure_url')
             return Response({'url': secure_url}, status=status.HTTP_201_CREATED)
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error("Cloudinary upload failed: %s", str(e), exc_info=True)
+            tb = traceback.format_exc()
+            print("CLOUDINARY UPLOAD ERROR:", tb)
+            return Response({
+                'error': str(e),
+                'traceback': tb
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
