@@ -135,6 +135,7 @@ class AnalyticsAPIView(views.APIView):
             'top_10_wilayas': top_wilayas,
         })
 
+from rest_framework.parsers import MultiPartParser, FormParser
 import cloudinary.uploader
 import logging
 import traceback
@@ -143,6 +144,8 @@ logger = logging.getLogger(__name__)
 
 class ImageUploadView(views.APIView):
     permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser, FormParser]
+
 
     def get(self, request):
         import cloudinary

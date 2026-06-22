@@ -277,10 +277,15 @@
                     const data = await res.json();
                     uploadedUrls.push(data.url);
                 } else {
-                    console.error("Upload failed for file", file.name);
+                    const errData = await res.json().catch(() => ({error: 'Network error'}));
+                    console.error("Upload failed for file", file.name, errData);
+                    statusDiv.innerHTML = `<span style="color:red">Erreur du serveur: ${errData.error || errData.detail || 'Erreur Inconnue'}</span>`;
+                    return;
                 }
             } catch (err) {
                 console.error(err);
+                statusDiv.innerHTML = `<span style="color:red">Erreur réseau: ${err.message}</span>`;
+                return;
             }
         }
         

@@ -316,11 +316,13 @@
                 previewImg.src = data.url;
                 previewImg.style.display = 'block';
             } else {
-                alert('Téléversement échoué');
+                const errData = await res.json().catch(() => ({error: 'Network error'}));
+                console.error("Upload failed for file", file.name, errData);
+                alert('Échec du téléversement: ' + (errData.error || errData.detail || 'Erreur Inconnue'));
             }
         } catch (err) {
             console.error(err);
-            alert('Erreur lors du téléversement');
+            alert('Erreur lors du téléversement: ' + err.message);
         }
     }
 
