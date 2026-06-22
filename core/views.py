@@ -162,7 +162,11 @@ class ImageUploadView(views.APIView):
         
         file_obj = request.FILES['image']
         try:
-            res = cloudinary.uploader.upload(file_obj, folder="old_money_algeria")
+            res = cloudinary.uploader.unsigned_upload(
+                file_obj,
+                upload_preset="old_money_uploads",
+                folder="old_money_algeria"
+            )
             secure_url = res.get('secure_url')
             return Response({'url': secure_url}, status=status.HTTP_201_CREATED)
         except Exception as e:

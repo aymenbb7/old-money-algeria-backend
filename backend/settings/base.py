@@ -111,15 +111,11 @@ CORS_ALLOW_HEADERS = [
 ]
 import cloudinary
 cloudinary.config(
-  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME', 'demo'),
-  api_key = os.getenv('CLOUDINARY_API_KEY', '12345'),
-  api_secret = os.getenv('CLOUDINARY_API_SECRET', '12345')
+  cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME', 'demo')
 )
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', 'demo'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY', '12345'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', '12345'),
 }
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
