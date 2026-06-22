@@ -19,7 +19,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'total_amount']
 
     def get_permissions(self):
-        if self.action == 'create' or self.action == 'checkout':
+        if self.action in ['create', 'checkout', 'track']:
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
 
@@ -140,6 +140,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.save()
             return Response({'status': 'status updated', 'new_status': order.status})
         return Response({'error': 'invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='track/(?P<order_number>[^/.]+)', permission_classes=[permissions.AllowAny])
+    def track(self, request, order_number=None):
+        order = get_object_or_404(Order, order_number__iexact=order_number)
+        serializer = OrderSerializer(order)
+        return Response(serializer.data)
 
 class CouponViewSet(viewsets.ModelViewSet):
     queryset = Coupon.objects.all()

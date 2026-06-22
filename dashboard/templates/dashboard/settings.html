@@ -115,9 +115,20 @@
                         <input type="text" id="heroBtnLink" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label>Hero Background Image URL</label>
+                        <label>Hero Background Image</label>
+                        <div style="display: flex; gap: 1rem; margin: 0.3rem 0;">
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                                <input type="radio" name="heroImgMode" value="url" checked onchange="toggleHeroImgMode('url')"> URL
+                            </label>
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                                <input type="radio" name="heroImgMode" value="file" onchange="toggleHeroImgMode('file')"> Fichier
+                            </label>
+                        </div>
                         <input type="text" id="heroImgUrl" class="form-control" placeholder="https://images.unsplash.com/photo-1617137968427-85924c800a22?w=1920&q=80">
-                        <small style="color:var(--text-muted); display:block; margin-top:0.3rem;">Collez l'URL d'une image depuis Unsplash, Google Drive, ou tout autre service</small>
+                        <div id="heroImgFileUpload" style="display:none; margin-top:0.3rem;">
+                            <input type="file" id="heroImgFile" class="form-control" accept="image/*" onchange="uploadSettingsFile('heroImgFile', 'heroImgUrl', 'heroImgPreview')">
+                        </div>
+                        <small style="color:var(--text-muted); display:block; margin-top:0.3rem;">Collez l'URL d'une image ou téléversez un fichier</small>
                         <img id="heroImgPreview" src="" style="max-width: 100%; height: 120px; object-fit: cover; margin-top: 0.5rem; display: none; border-radius: 4px; border: 1px solid var(--border-color);">
                     </div>
                     
@@ -126,8 +137,19 @@
                         <input type="text" id="collHeroTitle" class="form-control">
                     </div>
                     <div class="form-group">
-                        <label style="color: var(--accent-gold);">Collections Hero Background URL</label>
+                        <label style="color: var(--accent-gold);">Collections Hero Background</label>
+                        <div style="display: flex; gap: 1rem; margin: 0.3rem 0;">
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                                <input type="radio" name="collHeroImgMode" value="url" checked onchange="toggleCollHeroImgMode('url')"> URL
+                            </label>
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                                <input type="radio" name="collHeroImgMode" value="file" onchange="toggleCollHeroImgMode('file')"> Fichier
+                            </label>
+                        </div>
                         <input type="text" id="collHeroImgUrl" class="form-control">
+                        <div id="collHeroImgFileUpload" style="display:none; margin-top:0.3rem;">
+                            <input type="file" id="collHeroImgFile" class="form-control" accept="image/*" onchange="uploadSettingsFile('collHeroImgFile', 'collHeroImgUrl', 'collHeroImgPreview')">
+                        </div>
                         <small style="color:var(--text-muted); display:block; margin-top:0.3rem;">If empty, falls back to Homepage Hero.</small>
                         <img id="collHeroImgPreview" src="" style="max-width: 100%; height: 120px; object-fit: cover; margin-top: 0.5rem; display: none; border-radius: 4px; border: 1px solid var(--border-color);">
                     </div>
@@ -250,6 +272,58 @@
         }
     }
 
+    function toggleHeroImgMode(mode) {
+        if(mode === 'url') {
+            document.getElementById('heroImgUrl').style.display = 'block';
+            document.getElementById('heroImgFileUpload').style.display = 'none';
+        } else {
+            document.getElementById('heroImgUrl').style.display = 'none';
+            document.getElementById('heroImgFileUpload').style.display = 'block';
+        }
+    }
+
+    function toggleCollHeroImgMode(mode) {
+        if(mode === 'url') {
+            document.getElementById('collHeroImgUrl').style.display = 'block';
+            document.getElementById('collHeroImgFileUpload').style.display = 'none';
+        } else {
+            document.getElementById('collHeroImgUrl').style.display = 'none';
+            document.getElementById('collHeroImgFileUpload').style.display = 'block';
+        }
+    }
+
+    async function uploadSettingsFile(fileInputId, targetUrlInputId, previewImgId) {
+        const fileInput = document.getElementById(fileInputId);
+        const urlInput = document.getElementById(targetUrlInputId);
+        const previewImg = document.getElementById(previewImgId);
+        const token = localStorage.getItem('oma_access_token');
+        
+        if (!fileInput.files.length) return;
+        
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+            const res = await fetch('/api/v1/upload-image/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                urlInput.value = data.url;
+                previewImg.src = data.url;
+                previewImg.style.display = 'block';
+            } else {
+                alert('Téléversement échoué');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erreur lors du téléversement');
+        }
+    }
+
     function showPreview(inputId, previewId) {
         const url = document.getElementById(inputId).value;
         const img = document.getElementById(previewId);
@@ -264,6 +338,13 @@
     document.getElementById('heroImgUrl').addEventListener('blur', () => showPreview('heroImgUrl', 'heroImgPreview'));
     document.getElementById('collHeroImgUrl').addEventListener('blur', () => showPreview('collHeroImgUrl', 'collHeroImgPreview'));
 
-    document.addEventListener('DOMContentLoaded', () => loadConfig());
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConfig();
+        // Default to url mode
+        document.getElementsByName('heroImgMode')[0].checked = true;
+        toggleHeroImgMode('url');
+        document.getElementsByName('collHeroImgMode')[0].checked = true;
+        toggleCollHeroImgMode('url');
+    });
 </script>
 {% endblock %}

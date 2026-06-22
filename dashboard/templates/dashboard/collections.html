@@ -45,15 +45,44 @@
                 <input type="text" id="catSlug" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;">
             </div>
             <div style="margin-bottom: 1rem;">
-                <label>Thumbnail Image URL (for cards)</label>
-                <input type="text" id="catImageUrl" placeholder="https://images.unsplash.com/photo-... (thumbnail)" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;" oninput="updateCollectionPreviews()">
+                <label>Thumbnail Image (for cards)</label>
+                <div style="display: flex; gap: 1rem; margin: 0.3rem 0;">
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                        <input type="radio" name="catImageMode" value="url" checked onchange="toggleCatImageMode('url')"> URL
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                        <input type="radio" name="catImageMode" value="file" onchange="toggleCatImageMode('file')"> Fichier
+                    </label>
+                </div>
+                
+                <input type="text" id="catImageUrl" placeholder="https://images.unsplash.com/photo-..." style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main);" oninput="updateCollectionPreviews()">
+                
+                <div id="catImageFileUpload" style="display:none; margin-top: 0.3rem;">
+                    <input type="file" id="catImageFile" class="form-control" accept="image/*" onchange="uploadCollectionFile('catImageFile', 'catImageUrl', 'catThumbnailPreview', 'catThumbnailPreviewContainer')">
+                </div>
+                
                 <div id="catThumbnailPreviewContainer" style="margin-top: 0.5rem; display: none;">
                     <img id="catThumbnailPreview" src="" style="max-width: 100%; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);">
                 </div>
             </div>
+            
             <div style="margin-bottom: 1rem;">
-                <label>Hero Image URL (for banner)</label>
-                <input type="text" id="catHeroImageUrl" placeholder="https://images.unsplash.com/photo-... (hero)" style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main); margin-top: 0.5rem;" oninput="updateCollectionPreviews()">
+                <label>Hero Image (for banner)</label>
+                <div style="display: flex; gap: 1rem; margin: 0.3rem 0;">
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                        <input type="radio" name="catHeroImageMode" value="url" checked onchange="toggleCatHeroImageMode('url')"> URL
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:0.2rem; font-size:0.85rem;">
+                        <input type="radio" name="catHeroImageMode" value="file" onchange="toggleCatHeroImageMode('file')"> Fichier
+                    </label>
+                </div>
+                
+                <input type="text" id="catHeroImageUrl" placeholder="https://images.unsplash.com/photo-..." style="width: 100%; padding: 0.8rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-main);" oninput="updateCollectionPreviews()">
+                
+                <div id="catHeroImageFileUpload" style="display:none; margin-top: 0.3rem;">
+                    <input type="file" id="catHeroImageFile" class="form-control" accept="image/*" onchange="uploadCollectionFile('catHeroImageFile', 'catHeroImageUrl', 'catHeroPreview', 'catHeroPreviewContainer')">
+                </div>
+                
                 <div id="catHeroPreviewContainer" style="margin-top: 0.5rem; display: none;">
                     <img id="catHeroPreview" src="" style="max-width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border-color);">
                 </div>
@@ -124,6 +153,59 @@
         }
     }
 
+    function toggleCatImageMode(mode) {
+        if(mode === 'url') {
+            document.getElementById('catImageUrl').style.display = 'block';
+            document.getElementById('catImageFileUpload').style.display = 'none';
+        } else {
+            document.getElementById('catImageUrl').style.display = 'none';
+            document.getElementById('catImageFileUpload').style.display = 'block';
+        }
+    }
+
+    function toggleCatHeroImageMode(mode) {
+        if(mode === 'url') {
+            document.getElementById('catHeroImageUrl').style.display = 'block';
+            document.getElementById('catHeroImageFileUpload').style.display = 'none';
+        } else {
+            document.getElementById('catHeroImageUrl').style.display = 'none';
+            document.getElementById('catHeroImageFileUpload').style.display = 'block';
+        }
+    }
+
+    async function uploadCollectionFile(fileInputId, targetUrlInputId, previewImgId, previewContainerId) {
+        const fileInput = document.getElementById(fileInputId);
+        const urlInput = document.getElementById(targetUrlInputId);
+        const previewImg = document.getElementById(previewImgId);
+        const previewContainer = document.getElementById(previewContainerId);
+        const token = localStorage.getItem('oma_access_token');
+        
+        if (!fileInput.files.length) return;
+        
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        try {
+            const res = await fetch('/api/v1/upload-image/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                urlInput.value = data.url;
+                previewImg.src = data.url;
+                previewContainer.style.display = 'block';
+            } else {
+                alert('Téléversement échoué');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erreur lors du téléversement');
+        }
+    }
+
     function openCategoryModal() {
         document.getElementById('categoryModal').style.display = 'flex';
         document.getElementById('modalTitle').innerText = 'New Collection';
@@ -133,6 +215,12 @@
         document.getElementById('catHeroImageUrl').value = '';
         document.getElementById('catThumbnailPreviewContainer').style.display = 'none';
         document.getElementById('catHeroPreviewContainer').style.display = 'none';
+        
+        // Reset modes to url
+        document.getElementsByName('catImageMode')[0].checked = true;
+        toggleCatImageMode('url');
+        document.getElementsByName('catHeroImageMode')[0].checked = true;
+        toggleCatHeroImageMode('url');
     }
 
     function closeCategoryModal() {
@@ -148,6 +236,13 @@
         document.getElementById('catOrder').value = cat.display_order || 0;
         document.getElementById('catImageUrl').value = cat.image_url || cat.image || '';
         document.getElementById('catHeroImageUrl').value = cat.hero_image_url || '';
+        
+        // Default to url mode
+        document.getElementsByName('catImageMode')[0].checked = true;
+        toggleCatImageMode('url');
+        document.getElementsByName('catHeroImageMode')[0].checked = true;
+        toggleCatHeroImageMode('url');
+        
         updateCollectionPreviews();
     }
 

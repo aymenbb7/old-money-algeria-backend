@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Wilaya, StoreSettings, HomepageContent, HomepageSection
+from products.models import Product
 from products.serializers import ProductSerializer
 
 class WilayaSerializer(serializers.ModelSerializer):
@@ -18,10 +19,19 @@ class HomepageContentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class HomepageSectionSerializer(serializers.ModelSerializer):
-    products = ProductSerializer(many=True, read_only=True)
+    products = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Product.objects.all(),
+        required=False
+    )
 
     class Meta:
         model = HomepageSection
         fields = '__all__'
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['products'] = ProductSerializer(instance.products.all(), many=True).data
+        return rep
 
 

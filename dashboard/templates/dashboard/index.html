@@ -62,81 +62,177 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', async () => {
+        // Global Chart Options
+        Chart.defaults.color = '#E0E0E0';
+        Chart.defaults.font.family = 'Inter';
+
         const analytics = await apiCall('analytics/');
         if (analytics) {
-            document.getElementById('totOrders').innerText = analytics.total_orders;
-            document.getElementById('ordToday').innerText = analytics.todays_orders;
-            document.getElementById('revToday').innerText = `${parseFloat(analytics.revenue_today).toFixed(2)} DZD`;
-            document.getElementById('revMonth').innerText = `${parseFloat(analytics.revenue_this_month).toFixed(2)} DZD`;
-            document.getElementById('ordPending').innerText = analytics.pending_orders;
-            document.getElementById('topWilaya').innerText = `${analytics.top_wilaya.name} (${analytics.top_wilaya.count})`;
+            document.getElementById('totOrders').innerText = analytics.total_orders || 0;
+            document.getElementById('ordToday').innerText = analytics.todays_orders || 0;
+            document.getElementById('revToday').innerText = `${parseFloat(analytics.revenue_today || 0).toFixed(2)} DZD`;
+            document.getElementById('revMonth').innerText = `${parseFloat(analytics.revenue_this_month || 0).toFixed(2)} DZD`;
+            document.getElementById('ordPending').innerText = analytics.pending_orders || 0;
+            document.getElementById('topWilaya').innerText = analytics.top_wilaya && analytics.top_wilaya.name !== 'N/A' 
+                ? `${analytics.top_wilaya.name} (${analytics.top_wilaya.count})` 
+                : 'Aucune';
 
-            // Charts
-            const dates = analytics.daily_orders.map(d => d.date);
-            const orderCounts = analytics.daily_orders.map(d => d.count);
-            const revenueAmounts = analytics.daily_revenue.map(d => d.revenue);
+            const dates = (analytics.daily_orders || []).map(d => d.date);
+            const orderCounts = (analytics.daily_orders || []).map(d => d.count);
+            const revenueAmounts = (analytics.daily_revenue || []).map(d => d.revenue);
 
-            // Global Chart Options
-            Chart.defaults.color = '#E0E0E0';
-            Chart.defaults.font.family = 'Inter';
+            const gridConfig = {
+                color: '#333',
+                drawBorder: false
+            };
 
-            new Chart(document.getElementById('ordersChart'), {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Orders',
-                        data: orderCounts,
-                        borderColor: '#E0E0E0',
-                        tension: 0.1,
-                        backgroundColor: 'rgba(224, 224, 224, 0.1)',
-                        fill: true
-                    }]
-                }
-            });
+            const chartScales = {
+                x: { grid: gridConfig },
+                y: { grid: gridConfig, ticks: { precision: 0 } }
+            };
 
-            new Chart(document.getElementById('revenueChart'), {
-                type: 'line',
-                data: {
-                    labels: dates,
-                    datasets: [{
-                        label: 'Revenue (DZD)',
-                        data: revenueAmounts,
-                        borderColor: '#D4AF37',
-                        tension: 0.1,
-                        backgroundColor: 'rgba(212, 175, 55, 0.1)',
-                        fill: true
-                    }]
-                }
-            });
+            // 1. Daily Orders Chart
+            const ordersCtx = document.getElementById('ordersChart');
+            if (dates.length > 0 && orderCounts.some(c => c > 0)) {
+                new Chart(ordersCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Commandes',
+                            data: orderCounts,
+                            borderColor: '#D4AF37',
+                            tension: 0.4,
+                            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                            fill: true,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: chartScales
+                    }
+                });
+            } else {
+                showEmptyState(ordersCtx);
+            }
 
-            const statuses = Object.keys(analytics.orders_by_status);
-            const statusCounts = Object.values(analytics.orders_by_status);
-            new Chart(document.getElementById('statusChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: statuses,
-                    datasets: [{
-                        data: statusCounts,
-                        backgroundColor: ['#ffae42', '#3498db', '#f1c40f', '#2ecc71', '#0B4D2B', '#e74c3c']
-                    }]
-                }
-            });
+            // 2. Daily Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart');
+            if (dates.length > 0 && revenueAmounts.some(r => r > 0)) {
+                new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Revenus (DZD)',
+                            data: revenueAmounts,
+                            borderColor: '#D4AF37',
+                            tension: 0.4,
+                            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                            fill: true,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: chartScales
+                    }
+                });
+            } else {
+                showEmptyState(revenueCtx);
+            }
 
-            const wilayaNames = analytics.top_10_wilayas.map(w => w.wilaya__name);
-            const wilayaCounts = analytics.top_10_wilayas.map(w => w.count);
-            new Chart(document.getElementById('wilayasChart'), {
-                type: 'bar',
-                data: {
-                    labels: wilayaNames,
-                    datasets: [{
-                        label: 'Orders',
-                        data: wilayaCounts,
-                        backgroundColor: '#0B4D2B'
-                    }]
-                }
-            });
+            // 3. Orders by Status Chart
+            const statusCtx = document.getElementById('statusChart');
+            const statusData = analytics.orders_by_status || {};
+            const statusKeys = Object.keys(statusData);
+            const statusCounts = Object.values(statusData);
+
+            if (statusKeys.length > 0 && statusCounts.some(c => c > 0)) {
+                const statusLabelMap = { 
+                    'PENDING': 'En attente', 
+                    'CONFIRMED': 'Confirmée', 
+                    'PREPARING': 'Préparation', 
+                    'SHIPPED': 'En livraison', 
+                    'DELIVERED': 'Livrée', 
+                    'CANCELLED': 'Annulée', 
+                    'RETURNED': 'Retournée' 
+                };
+                const statusColors = {
+                    'PENDING': '#ffae42',
+                    'CONFIRMED': '#3498db',
+                    'PREPARING': '#f1c40f',
+                    'SHIPPED': '#2ecc71',
+                    'DELIVERED': '#0B4D2B',
+                    'CANCELLED': '#e74c3c',
+                    'RETURNED': '#95a5a6'
+                };
+
+                new Chart(statusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: statusKeys.map(k => statusLabelMap[k] || k),
+                        datasets: [{
+                            data: statusCounts,
+                            backgroundColor: statusKeys.map(k => statusColors[k] || '#D4AF37'),
+                            borderWidth: 1,
+                            borderColor: '#111'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'right' }
+                        }
+                    }
+                });
+            } else {
+                showEmptyState(statusCtx);
+            }
+
+            // 4. Top 10 Wilayas Chart
+            const wilayasCtx = document.getElementById('wilayasChart');
+            const topWilayas = analytics.top_10_wilayas || [];
+            if (topWilayas.length > 0) {
+                const wilayaNames = topWilayas.map(w => w.wilaya__name);
+                const wilayaCounts = topWilayas.map(w => w.count);
+
+                new Chart(wilayasCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: wilayaNames,
+                        datasets: [{
+                            label: 'Commandes',
+                            data: wilayaCounts,
+                            backgroundColor: '#D4AF37',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: chartScales
+                    }
+                });
+            } else {
+                showEmptyState(wilayasCtx);
+            }
         }
     });
+
+    function showEmptyState(canvasElement) {
+        const parent = canvasElement.parentElement;
+        canvasElement.style.display = 'none';
+        const placeholder = document.createElement('div');
+        placeholder.style.height = canvasElement.height + 'px';
+        placeholder.style.display = 'flex';
+        placeholder.style.alignItems = 'center';
+        placeholder.style.justifyContent = 'center';
+        placeholder.style.color = 'var(--text-muted)';
+        placeholder.style.fontSize = '0.9rem';
+        placeholder.style.fontStyle = 'italic';
+        placeholder.innerHTML = 'Aucune donnée disponible pour cette période.';
+        parent.appendChild(placeholder);
+    }
 </script>
 {% endblock %}

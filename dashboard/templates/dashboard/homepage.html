@@ -55,8 +55,79 @@
 </style>
 
 <div class="dashboard-header" style="margin-bottom: 2rem;">
-    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Homepage Sections</h1>
-    <p style="color: var(--text-muted);">Manage the product sections displayed on the homepage.</p>
+    <h1 class="brand-font" style="font-size: 2rem; color: var(--text-main);">Homepage Sections & Config</h1>
+    <p style="color: var(--text-muted);">Manage the homepage value props and product sections.</p>
+</div>
+
+<!-- VALUE PROPS CONFIG -->
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 class="brand-font" style="margin-bottom: 1.5rem; color: var(--accent-gold);">Homepage Value Propositions</h3>
+    <form id="valuePropsForm" onsubmit="saveValueProps(event)">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+            <!-- Prop 1 -->
+            <div style="background: #111; padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 1rem; color: var(--accent-gold);">Prop 1 (Quality)</h4>
+                <div class="form-group">
+                    <label>Icon</label>
+                    <select id="prop1Icon" class="form-control">
+                        <option value="CROWN">✦ Crown</option>
+                        <option value="TRUCK">📦 Truck</option>
+                        <option value="DIAMOND">◆ Diamond</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="prop1Title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Text</label>
+                    <textarea id="prop1Text" class="form-control" rows="3" required></textarea>
+                </div>
+            </div>
+            <!-- Prop 2 -->
+            <div style="background: #111; padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 1rem; color: var(--accent-gold);">Prop 2 (Delivery)</h4>
+                <div class="form-group">
+                    <label>Icon</label>
+                    <select id="prop2Icon" class="form-control">
+                        <option value="CROWN">✦ Crown</option>
+                        <option value="TRUCK">📦 Truck</option>
+                        <option value="DIAMOND">◆ Diamond</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="prop2Title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Text</label>
+                    <textarea id="prop2Text" class="form-control" rows="3" required></textarea>
+                </div>
+            </div>
+            <!-- Prop 3 -->
+            <div style="background: #111; padding: 1rem; border-radius: 6px; border: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 1rem; color: var(--accent-gold);">Prop 3 (Elegance)</h4>
+                <div class="form-group">
+                    <label>Icon</label>
+                    <select id="prop3Icon" class="form-control">
+                        <option value="CROWN">✦ Crown</option>
+                        <option value="TRUCK">📦 Truck</option>
+                        <option value="DIAMOND">◆ Diamond</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="prop3Title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Text</label>
+                    <textarea id="prop3Text" class="form-control" rows="3" required></textarea>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn-gold" style="margin-top: 1.5rem; float: right;">Save Value Propositions</button>
+        <div style="clear: both;"></div>
+    </form>
 </div>
 
 <div id="sectionsContainer">
@@ -68,6 +139,7 @@
 {% block scripts %}
 <script>
     let allProducts = [];
+    let homepageContentId = null;
 
     async function loadData() {
         const prodData = await apiCall('products/?limit=100');
@@ -76,6 +148,47 @@
         const secData = await apiCall('homepage/sections/');
         if (secData && secData.results) {
             renderSections(secData.results);
+        }
+
+        const bannerData = await apiCall('homepage-content/');
+        if (bannerData && bannerData.results && bannerData.results.length > 0) {
+            const content = bannerData.results[0];
+            homepageContentId = content.id;
+            document.getElementById('prop1Icon').value = content.prop1_icon || 'CROWN';
+            document.getElementById('prop1Title').value = content.prop1_title || '';
+            document.getElementById('prop1Text').value = content.prop1_text || '';
+
+            document.getElementById('prop2Icon').value = content.prop2_icon || 'TRUCK';
+            document.getElementById('prop2Title').value = content.prop2_title || '';
+            document.getElementById('prop2Text').value = content.prop2_text || '';
+
+            document.getElementById('prop3Icon').value = content.prop3_icon || 'DIAMOND';
+            document.getElementById('prop3Title').value = content.prop3_title || '';
+            document.getElementById('prop3Text').value = content.prop3_text || '';
+        }
+    }
+
+    async function saveValueProps(e) {
+        e.preventDefault();
+        if (!homepageContentId) return;
+
+        const payload = {
+            prop1_icon: document.getElementById('prop1Icon').value,
+            prop1_title: document.getElementById('prop1Title').value,
+            prop1_text: document.getElementById('prop1Text').value,
+            prop2_icon: document.getElementById('prop2Icon').value,
+            prop2_title: document.getElementById('prop2Title').value,
+            prop2_text: document.getElementById('prop2Text').value,
+            prop3_icon: document.getElementById('prop3Icon').value,
+            prop3_title: document.getElementById('prop3Title').value,
+            prop3_text: document.getElementById('prop3Text').value,
+        };
+
+        const res = await apiCall(`homepage-content/${homepageContentId}/`, 'PATCH', payload);
+        if (res) {
+            alert('Value Propositions saved successfully!');
+        } else {
+            alert('Error saving Value Propositions');
         }
     }
 

@@ -56,6 +56,23 @@ class HomepageContent(models.Model):
     collections_hero_title = models.CharField(max_length=255, blank=True, null=True)
     collections_hero_image_url = models.URLField(max_length=1000, blank=True, null=True)
 
+    ICON_CHOICES = [
+        ('CROWN', 'Crown'),
+        ('TRUCK', 'Truck'),
+        ('DIAMOND', 'Diamond'),
+    ]
+    prop1_icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='CROWN')
+    prop1_title = models.CharField(max_length=255, default='Qualité Premium')
+    prop1_text = models.TextField(default="Des matières nobles sélectionnées pour durer et affirmer votre statut.")
+    
+    prop2_icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='TRUCK')
+    prop2_title = models.CharField(max_length=255, default='Livraison 58 Wilayas')
+    prop2_text = models.TextField(default="Payez en espèces à la livraison. Nous expédions partout en Algérie.")
+    
+    prop3_icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='DIAMOND')
+    prop3_title = models.CharField(max_length=255, default='Élégance Intemporelle')
+    prop3_text = models.TextField(default="Des coupes minimalistes inspirées par l'esthétique Old Money.")
+
     class Meta:
         verbose_name = "Homepage Content"
         verbose_name_plural = "Homepage Content"

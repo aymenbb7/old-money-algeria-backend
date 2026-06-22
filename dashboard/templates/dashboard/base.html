@@ -248,13 +248,11 @@
         </div>
         <div class="sidebar-menu">
             <a href="/admin/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_index' %}active{% endif %}"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="/admin/homepage/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_homepage' %}active{% endif %}"><i class="fas fa-home"></i> Homepage</a>
             <a href="/admin/orders/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_orders' %}active{% endif %}"><i class="fas fa-shopping-bag"></i> Orders</a>
-            <a href="/admin/categories/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_categories' %}active{% endif %}"><i class="fas fa-tags"></i> Categories</a>
-            <a href="/admin/lookbook/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_lookbook' %}active{% endif %}"><i class="fas fa-camera-retro"></i> Lookbook</a>
             <a href="/admin/products/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_products' %}active{% endif %}"><i class="fas fa-box"></i> Products</a>
-            <a href="/admin/customers/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_customers' %}active{% endif %}"><i class="fas fa-users"></i> Customers</a>
-            <a href="/admin/wilayas/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_wilayas' %}active{% endif %}"><i class="fas fa-map-marker-alt"></i> Wilayas</a>
+            <a href="/admin/categories/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_categories' %}active{% endif %}"><i class="fas fa-tags"></i> Categories</a>
+            <a href="/admin/homepage/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_homepage' %}active{% endif %}"><i class="fas fa-home"></i> Homepage</a>
+            <a href="/admin/wilayas/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_wilayas' %}active{% endif %}"><i class="fas fa-map-marker-alt"></i> Wilayas & Delivery</a>
             <a href="/admin/coupons/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_coupons' %}active{% endif %}"><i class="fas fa-ticket-alt"></i> Coupons</a>
             <a href="/admin/settings/" class="menu-item {% if request.resolver_match.url_name == 'dashboard_settings' %}active{% endif %}"><i class="fas fa-cog"></i> Settings</a>
         </div>

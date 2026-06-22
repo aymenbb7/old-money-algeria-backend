@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet
+from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet, ImageUploadView
 from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet
 from orders.views import OrderViewSet, CouponViewSet
 from users.views import UserViewSet, CustomerProfileViewSet
@@ -33,6 +33,9 @@ urlpatterns = [
     
     # Custom Analytics Route
     path('api/v1/analytics/', AnalyticsAPIView.as_view(), name='analytics'),
+    
+    # Custom Image Upload Route
+    path('api/v1/upload-image/', ImageUploadView.as_view(), name='upload_image'),
     
     # Auth Routes
     path('api/v1/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

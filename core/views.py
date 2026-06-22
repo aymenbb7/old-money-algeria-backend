@@ -134,3 +134,20 @@ class AnalyticsAPIView(views.APIView):
             'orders_by_status': orders_by_status,
             'top_10_wilayas': top_wilayas,
         })
+
+import cloudinary.uploader
+
+class ImageUploadView(views.APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        if 'image' not in request.FILES:
+            return Response({'error': 'No image file provided in request.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        file_obj = request.FILES['image']
+        try:
+            res = cloudinary.uploader.upload(file_obj, folder="old_money_algeria")
+            secure_url = res.get('secure_url')
+            return Response({'url': secure_url}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
