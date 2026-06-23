@@ -26,6 +26,22 @@ class StoreSettings(models.Model):
     google_analytics_id = models.CharField(max_length=50, blank=True, null=True)
     free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount above which delivery is free.")
 
+    THEME_CHOICES = (
+        ('dark-classique', 'Dark Classique'),
+        ('green-luxury', 'Green Luxury'),
+        ('forest-gold', 'Forest & Gold'),
+        ('black-green', 'Black & Green'),
+        ('gold-dark', 'Gold & Dark'),
+        ('pure-green', 'Pure Green'),
+        ('custom', 'Custom Theme'),
+    )
+    active_theme = models.CharField(max_length=50, choices=THEME_CHOICES, default='dark-classique')
+    custom_bg_color = models.CharField(max_length=7, blank=True, null=True, help_text="e.g. #0A0A0A")
+    custom_text_color = models.CharField(max_length=7, blank=True, null=True, help_text="e.g. #FFFFFF")
+    custom_accent_color = models.CharField(max_length=7, blank=True, null=True, help_text="e.g. #D4AF37")
+    custom_cards_color = models.CharField(max_length=7, blank=True, null=True, help_text="e.g. #111111")
+    custom_primary_color = models.CharField(max_length=7, blank=True, null=True, help_text="e.g. #1B5E20")
+
     class Meta:
         verbose_name = "Store Settings"
         verbose_name_plural = "Store Settings"
