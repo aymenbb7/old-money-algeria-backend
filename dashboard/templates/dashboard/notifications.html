@@ -1,0 +1,411 @@
+<style>
+/* Notification Bell & Dropdown Styles */
+.notif-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-right: 1rem;
+}
+
+.notif-bell {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.2rem;
+    cursor: pointer;
+    position: relative;
+    padding: 0.5rem;
+    transition: color 0.2s;
+}
+
+.notif-bell:hover {
+    color: var(--accent-gold);
+}
+
+.notif-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #e74c3c;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    border-radius: 50%;
+    padding: 2px 6px;
+    display: none;
+}
+
+.notif-dropdown {
+    position: absolute;
+    top: 100%;
+    right: -50px;
+    width: 320px;
+    background-color: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    display: none;
+    z-index: 2000;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.notif-dropdown.show {
+    display: flex;
+}
+
+.notif-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notif-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--accent-gold);
+}
+
+.mark-all-read {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+.mark-all-read:hover {
+    color: var(--text-main);
+}
+
+.notif-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.notif-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text-main);
+    transition: background 0.2s;
+}
+
+.notif-item:hover {
+    background-color: rgba(255,255,255,0.05);
+}
+
+.notif-item.unread {
+    background-color: rgba(212, 175, 55, 0.05);
+}
+
+.notif-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.notif-msg {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.notif-meta {
+    font-size: 0.75rem;
+    color: var(--accent-gold);
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+}
+
+.notif-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Toast Notifications */
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 9999;
+}
+
+.toast {
+    background-color: var(--card-color);
+    border-left: 4px solid var(--accent-gold);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    padding: 1rem;
+    border-radius: 4px;
+    width: 300px;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast-title {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.toast-msg {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+</style>
+
+<!-- Audio context for premium apple-like sound -->
+<script>
+let originalTitle = document.title;
+let lastUnreadCount = 0;
+
+function playPremiumSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        
+        // Premium soft chime
+        const playTone = (freq, time, dur, vol=0.5) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + time);
+            
+            gain.gain.setValueAtTime(0, ctx.currentTime + time);
+            gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + time + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + time + dur);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(ctx.currentTime + time);
+            osc.stop(ctx.currentTime + time + dur);
+        };
+        
+        // E5 then C6 (soft marimba/glass)
+        playTone(659.25, 0, 0.4, 0.3);
+        playTone(1046.50, 0.15, 0.6, 0.3);
+    } catch(e) {
+        console.warn("Audio Context not supported", e);
+    }
+}
+
+function showToast(title, message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${message}</div>`;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+async function fetchNotifications() {
+    try {
+        const res = await fetch('/api/v1/dashboard/notifications/', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        renderNotifications(data);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderNotifications(data) {
+    const body = document.getElementById('notifBody');
+    const badge = document.getElementById('notifBadge');
+    
+    body.innerHTML = '';
+    
+    const unreadCount = data.filter(n => !n.is_read).length;
+    
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount;
+        badge.style.display = 'block';
+        document.title = `(${unreadCount}) ${originalTitle}`;
+        
+        if (unreadCount > lastUnreadCount) {
+            playPremiumSound();
+            // Show toast for the newest unread
+            const newest = data.find(n => !n.is_read);
+            if (newest) showToast(newest.title, newest.message);
+        }
+    } else {
+        badge.style.display = 'none';
+        document.title = originalTitle;
+    }
+    
+    lastUnreadCount = unreadCount;
+    
+    if (data.length === 0) {
+        body.innerHTML = '<div class="notif-empty">Aucune notification</div>';
+        return;
+    }
+    
+    data.slice(0, 20).forEach(n => {
+        const item = document.createElement('a');
+        item.className = `notif-item ${n.is_read ? '' : 'unread'}`;
+        
+        let targetUrl = '#';
+        if (n.order_id) targetUrl = `/admin/orders/?highlight=${n.order_id}`;
+        
+        item.onclick = async (e) => {
+            if(!n.is_read) {
+                await fetch(`/api/v1/dashboard/notifications/${n.id}/read/`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
+                });
+            }
+            if(n.order_id) {
+                window.location.href = targetUrl;
+            } else {
+                fetchNotifications();
+            }
+        };
+        
+        let typeLabel = '';
+        switch(n.notification_type) {
+            case 'NEW_ORDER': typeLabel = 'Nouvelle Commande'; break;
+            case 'LOW_STOCK': typeLabel = 'Stock Faible'; break;
+            default: typeLabel = 'Système';
+        }
+        
+        item.innerHTML = `
+            <div class="notif-title">${n.title}</div>
+            <div class="notif-msg">${n.message}</div>
+            <div class="notif-meta">
+                <span>${typeLabel}</span>
+                <span>${n.created_at_formatted}</span>
+            </div>
+        `;
+        body.appendChild(item);
+    });
+}
+
+async function markAllRead() {
+    try {
+        await fetch('/api/v1/dashboard/notifications/mark_all_read/', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
+        });
+        fetchNotifications();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Inject Bell HTML
+    const userInfo = document.querySelector('.user-info');
+    if (userInfo) {
+        const notifHtml = `
+            <div class="notif-wrapper" id="notifWrapper">
+                <button class="notif-bell" id="notifBell">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-badge" id="notifBadge">0</span>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div class="notif-header">
+                        <h4>Notifications</h4>
+                        <button class="mark-all-read" onclick="markAllRead()">Tout marquer comme lu</button>
+                    </div>
+                    <div class="notif-body" id="notifBody">
+                        <div class="notif-empty">Chargement...</div>
+                    </div>
+                </div>
+            </div>
+            <button onclick="requestPushPermission()" style="font-size: 0.8rem; padding: 4px 8px; margin-right: 10px;" id="pushBtn">
+                <i class="fas fa-satellite-dish"></i> Activer Push
+            </button>
+        `;
+        userInfo.insertAdjacentHTML('afterbegin', notifHtml);
+        
+        const toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        document.body.appendChild(toastContainer);
+        
+        const bell = document.getElementById('notifBell');
+        const dropdown = document.getElementById('notifDropdown');
+        
+        bell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('show');
+            if(dropdown.classList.contains('show')){
+                fetchNotifications();
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && !bell.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+    }
+
+    // Initial fetch and polling
+    fetchNotifications();
+    setInterval(fetchNotifications, 10000);
+});
+
+async function requestPushPermission() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert("Push notifications are not supported in this browser.");
+        return;
+    }
+    
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        const swReg = await navigator.serviceWorker.register('/static/dashboard/sw.js');
+        const subscription = await swReg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array('BA_SPAib-DoTzlQWMk4TCUGVb5qbpirq6uejLUE9LG9Ma6mjFQAidaY7y_PImfmwgGYSRzuhPZgqO4FqhZ7diAM')
+        });
+        
+        // Save to backend
+        await fetch('/api/v1/dashboard/notifications/subscribe/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}`
+            },
+            body: JSON.stringify(subscription)
+        });
+        alert('Push notifications enabled!');
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+</script>

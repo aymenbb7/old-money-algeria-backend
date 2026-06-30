@@ -9,6 +9,7 @@ from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewS
 from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet, ProductImageViewSet
 from orders.views import OrderViewSet, CouponViewSet
 from users.views import UserViewSet, CustomerProfileViewSet
+from dashboard.views import NotificationViewSet
 
 router = DefaultRouter()
 router.register(r'products/images', ProductImageViewSet, basename='product-images')
@@ -25,6 +26,7 @@ router.register(r'homepage/banners', HomepageContentViewSet, basename='banners')
 router.register(r'homepage/sections', HomepageSectionViewSet, basename='sections')
 router.register(r'users', UserViewSet)
 router.register(r'customers', CustomerProfileViewSet)
+router.register(r'dashboard/notifications', NotificationViewSet, basename='notifications')
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),

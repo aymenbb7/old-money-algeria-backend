@@ -135,3 +135,8 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# Web Push VAPID Keys
+VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'h66OkWP1tJHx4a7aohEQP87UIRRVEWzZuyRkKfkxs7I')
+VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'BA_SPAib-DoTzlQWMk4TCUGVb5qbpirq6uejLUE9LG9Ma6mjFQAidaY7y_PImfmwgGYSRzuhPZgqO4FqhZ7diAM')
+VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'mailto:admin@oldmoney.dz')

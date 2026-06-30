@@ -9,6 +9,7 @@ from .models import Order, OrderItem, Coupon
 from .serializers import OrderSerializer, CouponSerializer
 from products.models import ProductVariant
 from core.models import Wilaya
+from dashboard.utils import send_admin_notification
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all().prefetch_related('items')
@@ -78,6 +79,14 @@ class OrderViewSet(viewsets.ModelViewSet):
             variant.stock -= qty
             variant.save()
             
+            if variant.stock <= 5:
+                send_admin_notification(
+                    title=f"Stock Faible: {variant.product.name}",
+                    message=f"Le stock pour {variant.product.name} ({variant.size}/{variant.color}) est descendu à {variant.stock}.",
+                    notification_type='LOW_STOCK',
+                    product=variant.product
+                )
+            
             # Use discount price if available
             price = variant.product.discount_price if variant.product.discount_price else variant.product.price
             
@@ -125,6 +134,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.discount_amount = discount_amount
         order.total_amount = (subtotal - discount_amount) + delivery_price
         order.save()
+
+        # Send New Order Notification
+        send_admin_notification(
+            title="Nouvelle commande",
+            message=f"Commande {order.order_number} de {order.guest_name} ({order.wilaya.name}) - {order.total_amount} DZD",
+            notification_type='NEW_ORDER',
+            order=order
+        )
 
         return Response({
             'order_number': order.order_number,
