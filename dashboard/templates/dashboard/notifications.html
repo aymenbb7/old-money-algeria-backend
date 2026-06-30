@@ -228,7 +228,8 @@ async function fetchNotifications() {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
         });
         if (!res.ok) return;
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.results ? json.results : json;
         renderNotifications(data);
     } catch (e) {
         console.error(e);

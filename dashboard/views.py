@@ -65,8 +65,9 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def subscribe(self, request):
         data = request.data
         endpoint = data.get('endpoint')
-        p256dh = data.get('p256dh')
-        auth = data.get('auth')
+        keys = data.get('keys', {})
+        p256dh = keys.get('p256dh') or data.get('p256dh')
+        auth = keys.get('auth') or data.get('auth')
 
         if not all([endpoint, p256dh, auth]):
             return Response({'error': 'Missing push subscription fields'}, status=status.HTTP_400_BAD_REQUEST)
