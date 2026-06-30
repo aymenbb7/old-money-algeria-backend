@@ -533,7 +533,8 @@
         };
         
         if (!id) {
-            payload.image_urls = currentProductImages.map(img => img.image_url);
+            const sortedImages = [...currentProductImages].sort((a,b) => (b.is_main ? 1 : 0) - (a.is_main ? 1 : 0));
+            payload.image_urls = sortedImages.map(img => img.image_url);
         }
 
         const originalSlug = document.getElementById('originalSlug').value;

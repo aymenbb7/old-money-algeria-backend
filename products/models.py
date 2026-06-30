@@ -71,6 +71,9 @@ class ProductImage(models.Model):
     # Used if WebP generated path is stored
     webp_image = models.ImageField(upload_to='products/webp/', blank=True, null=True)
 
+    class Meta:
+        ordering = ['-is_main', 'id']
+
     def __str__(self):
         return f"Image for {self.product.name}"
 
