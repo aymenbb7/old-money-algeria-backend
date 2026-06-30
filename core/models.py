@@ -25,6 +25,11 @@ class StoreSettings(models.Model):
     meta_pixel_id = models.CharField(max_length=50, blank=True, null=True)
     google_analytics_id = models.CharField(max_length=50, blank=True, null=True)
     free_delivery_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Amount above which delivery is free.")
+    
+    # Notifications WhatsApp
+    notification_phone = models.CharField(max_length=20, blank=True, null=True, help_text="e.g. +213XXXXXXXXX")
+    whatsapp_apikey = models.CharField(max_length=100, blank=True, null=True, help_text="CallMeBot API key")
+    enable_whatsapp_notifications = models.BooleanField(default=False)
 
     THEME_CHOICES = (
         ('dark-classique', 'Dark Classique'),

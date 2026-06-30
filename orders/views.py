@@ -142,12 +142,41 @@ class OrderViewSet(viewsets.ModelViewSet):
             notification_type='NEW_ORDER',
             order=order
         )
+        
+        # Send WhatsApp Notification
+        self.send_whatsapp_notification(order)
 
         return Response({
             'order_number': order.order_number,
             'total_amount': order.total_amount,
             'status': order.status
         }, status=status.HTTP_201_CREATED)
+
+    def send_whatsapp_notification(self, order):
+        from core.models import StoreSettings
+        settings = StoreSettings.objects.first()
+        if not settings or not settings.whatsapp_apikey or not settings.enable_whatsapp_notifications:
+            return
+        
+        message = f"""🛍️ Nouvelle commande!
+N°: {order.order_number}
+Client: {order.guest_name}
+Tél: {order.guest_phone}
+Wilaya: {order.wilaya.name}
+Total: {order.total_amount} DZD
+👉 https://old-money-algeria-backend.onrender.com/admin/orders/"""
+        
+        import requests
+        url = "https://api.callmebot.com/whatsapp.php"
+        params = {
+            "phone": settings.notification_phone,
+            "text": message,
+            "apikey": settings.whatsapp_apikey
+        }
+        try:
+            requests.get(url, params=params, timeout=10)
+        except:
+            pass  # Don't fail order if notification fails
 
     @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
     def update_status(self, request, pk=None):

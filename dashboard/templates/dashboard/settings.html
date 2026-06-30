@@ -90,6 +90,43 @@
         </form>
     </div>
 
+    <!-- Notifications Push -->
+    <div class="settings-card">
+        <h3 class="settings-header">Notifications Push (iPhone & Desktop)</h3>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1rem;">Activez les notifications push natives pour ce navigateur.</p>
+        <button type="button" class="btn-save" style="float:none; width:100%; text-align:center; display:flex; justify-content:center; align-items:center; gap:0.5rem;" onclick="requestPushPermission()">
+            <i class="fas fa-satellite-dish"></i> Activer les notifications
+        </button>
+        <p id="pushStatusMsg" style="margin-top:1rem; font-size:0.9rem; font-weight:bold;"></p>
+    </div>
+
+    <!-- Notifications WhatsApp -->
+    <div class="settings-card">
+        <h3 class="settings-header">Notifications WhatsApp</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:1rem;">
+            Pour obtenir votre clé API:<br>
+            1. Envoyez <strong>'I allow callmebot to send me messages'</strong> au <strong>+34 644 44 56 30</strong> sur WhatsApp.<br>
+            2. Vous recevrez votre clé API.<br>
+            3. Entrez le numéro et la clé ci-dessous.
+        </p>
+        <form id="whatsappNotifForm" onsubmit="saveSettings(event, 'whatsappNotif')">
+            <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                <input type="checkbox" id="enableWhatsapp" style="width:18px; height:18px;">
+                <label for="enableWhatsapp" style="margin:0; font-size:1rem; color:var(--text-main); cursor:pointer;">Activer les notifications WhatsApp</label>
+            </div>
+            <div class="form-group">
+                <label>Numéro de téléphone (avec indicatif)</label>
+                <input type="text" id="notifPhone" class="form-control" placeholder="+213...">
+            </div>
+            <div class="form-group">
+                <label>Clé API CallMeBot</label>
+                <input type="text" id="whatsappApiKey" class="form-control" placeholder="1234567...">
+            </div>
+            <button type="submit" class="btn-save">Save WhatsApp</button>
+            <div style="clear:both;"></div>
+        </form>
+    </div>
+
     <!-- Hero Banners -->
     <div class="settings-card" style="grid-column: 1 / -1;">
         <h3 class="settings-header">Homepage Hero Banner</h3>
@@ -343,6 +380,13 @@
             document.getElementById('facebook').value = s.facebook_url || '';
             document.getElementById('tiktok').value = s.tiktok_url || '';
             document.getElementById('freeDelivery').value = s.free_delivery_threshold || 0;
+            
+            // WhatsApp
+            document.getElementById('notifPhone').value = s.notification_phone || '';
+            document.getElementById('whatsappApiKey').value = s.whatsapp_apikey || '';
+            document.getElementById('enableWhatsapp').checked = s.enable_whatsapp_notifications || false;
+            
+            // ...
             document.getElementById('metaPixel').value = s.meta_pixel_id || '';
             document.getElementById('googleAnalytics').value = s.google_analytics_id || '';
             window.selectedTheme = s.active_theme || 'dark-classique';
@@ -394,6 +438,10 @@
         } else if (section === 'analytics') {
             formData.append('meta_pixel_id', document.getElementById('metaPixel').value);
             formData.append('google_analytics_id', document.getElementById('googleAnalytics').value);
+        } else if (section === 'whatsappNotif') {
+            formData.append('notification_phone', document.getElementById('notifPhone').value);
+            formData.append('whatsapp_apikey', document.getElementById('whatsappApiKey').value);
+            formData.append('enable_whatsapp_notifications', document.getElementById('enableWhatsapp').checked);
         }
 
         try {
@@ -519,6 +567,85 @@
         toggleHeroImgMode('url');
         document.getElementsByName('collHeroImgMode')[0].checked = true;
         toggleCollHeroImgMode('url');
+        
+        checkPushStatus();
     });
+    
+    // PUSH NOTIFICATION LOGIC
+    function checkPushStatus() {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            document.getElementById('pushStatusMsg').innerHTML = '<span style="color:var(--success-green);">Activé ✓</span>';
+        } else {
+            document.getElementById('pushStatusMsg').innerHTML = '<span style="color:var(--text-muted);">Désactivé</span>';
+        }
+    }
+    
+    async function requestPushPermission() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Push notifications are not supported in this browser.");
+            return;
+        }
+        
+        // Detect iOS standalone or Safari
+        const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        
+        if (isIos && !isStandalone) {
+            document.getElementById('iosPushModal').style.display = 'flex';
+            return;
+        }
+        
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            const swReg = await navigator.serviceWorker.register('/static/dashboard/sw.js');
+            const subscription = await swReg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array('BA_SPAib-DoTzlQWMk4TCUGVb5qbpirq6uejLUE9LG9Ma6mjFQAidaY7y_PImfmwgGYSRzuhPZgqO4FqhZ7diAM')
+            });
+            
+            // Save to backend
+            await fetch('/api/v1/dashboard/notifications/subscribe/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}`
+                },
+                body: JSON.stringify(subscription)
+            });
+            alert('Push notifications enabled!');
+            checkPushStatus();
+        }
+    }
+    
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+    
+    function closeIosModal() {
+        document.getElementById('iosPushModal').style.display = 'none';
+    }
 </script>
+
+<!-- iOS Push Instructions Modal -->
+<div id="iosPushModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+    <div style="background:var(--card-color); border:1px solid var(--accent-gold); padding:2rem; border-radius:8px; max-width:400px; width:90%;">
+        <h3 style="color:var(--accent-gold); margin-bottom:1rem; text-align:center;">📱 Activer sur iPhone</h3>
+        <p style="color:var(--text-main); line-height:1.6; margin-bottom:1.5rem;">
+            Pour activer les notifications sur iPhone, vous devez installer l'application sur votre écran d'accueil :<br><br>
+            1. Appuyez sur l'icône Partager (<strong>□↑</strong>) en bas de l'écran Safari<br>
+            2. Faites défiler et appuyez sur <strong>'Sur l'écran d'accueil'</strong><br>
+            3. Appuyez sur <strong>'Ajouter'</strong> en haut à droite<br>
+            4. Ouvrez la nouvelle application OMA depuis votre écran d'accueil<br>
+            5. Revenez dans les paramètres et activez les notifications
+        </p>
+        <button onclick="closeIosModal()" class="btn-save" style="float:none; width:100%;">J'ai compris</button>
+    </div>
+</div>
 {% endblock %}
