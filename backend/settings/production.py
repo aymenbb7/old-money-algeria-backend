@@ -8,6 +8,9 @@ allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
 if allowed_hosts_env:
     ALLOWED_HOSTS = allowed_hosts_env.split(',')
 
+# CSRF - auto-build from ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = [f'https://{host}' for host in ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']]
+
 # Update DATABASE_URL with dj-database-url
 db_from_env = dj_database_url.config(conn_max_age=500)
 if db_from_env:
