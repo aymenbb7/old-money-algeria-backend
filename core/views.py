@@ -177,3 +177,115 @@ class ImageUploadView(views.APIView):
                 'error': str(e),
                 'traceback': tb
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class R2PresignedUploadView(views.APIView):
+    """
+    Return a presigned PUT URL so the browser can upload an image directly to
+    Cloudflare R2 without routing the bytes through the Django/Render server.
+
+    POST body (JSON):
+        filename     : original file name (used only to determine extension)
+        content_type : MIME type — must be an allowed image type
+        size_bytes   : compressed file size in bytes (validated server-side)
+
+    Response (200):
+        upload_url   : presigned PUT URL (valid 5 minutes)
+        public_url   : permanent public URL the browser should save as image_url
+        key          : storage key inside the bucket
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    ALLOWED_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
+    MAX_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+    def post(self, request):
+        import uuid as _uuid
+        import os as _os
+        import boto3
+        from botocore.config import Config as BotocoreConfig
+        from django.conf import settings as dj_settings
+
+        filename     = request.data.get('filename', 'image.jpg')
+        content_type = request.data.get('content_type', 'image/jpeg')
+        try:
+            size_bytes = int(request.data.get('size_bytes', 0))
+        except (ValueError, TypeError):
+            size_bytes = 0
+
+        if content_type not in self.ALLOWED_TYPES:
+            return Response(
+                {'error': f'File type not allowed: {content_type}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if size_bytes > self.MAX_SIZE_BYTES:
+            return Response(
+                {'error': 'File too large (max 10 MB after compression)'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Read R2 credentials from env (preferred) or Django settings
+        def _cfg(key):
+            return _os.getenv(key, '') or getattr(dj_settings, key, '')
+
+        account_id = _cfg('R2_ACCOUNT_ID')
+        access_key = _cfg('R2_ACCESS_KEY_ID')
+        secret_key = _cfg('R2_SECRET_ACCESS_KEY')
+        bucket     = _cfg('R2_BUCKET_NAME')
+        pub_base   = _cfg('R2_PUBLIC_URL')
+
+        if not all([account_id, access_key, secret_key, bucket]):
+            # Not configured — browser will fall back to legacy upload path
+            return Response(
+                {'error': 'R2 storage is not configured on this server.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        # Build unique object key
+        ext_map = {
+            'image/jpeg': '.jpg',
+            'image/png':  '.png',
+            'image/webp': '.webp',
+            'image/gif':  '.gif',
+        }
+        ext = ext_map.get(content_type, '.jpg')
+        key = f"products/{_uuid.uuid4().hex}{ext}"
+
+        try:
+            r2 = boto3.client(
+                's3',
+                endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=BotocoreConfig(signature_version='s3v4'),
+                region_name='auto',
+            )
+            upload_url = r2.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket':      bucket,
+                    'Key':         key,
+                    'ContentType': content_type,
+                },
+                ExpiresIn=300,  # 5 minutes
+            )
+        except Exception as e:
+            logger.error("R2 presign error: %s", e, exc_info=True)
+            return Response(
+                {'error': f'Could not generate upload URL: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Derive permanent public URL
+        if pub_base:
+            public_url = f"{pub_base.rstrip('/')}/{key}"
+        else:
+            # Fallback: strip query-string from presigned URL
+            public_url = upload_url.split('?')[0]
+
+        return Response({
+            'upload_url': upload_url,
+            'public_url': public_url,
+            'key':        key,
+        }, status=status.HTTP_200_OK)
+

@@ -174,37 +174,44 @@
     }
 
     async function uploadCollectionFile(fileInputId, targetUrlInputId, previewImgId, previewContainerId) {
-        const fileInput = document.getElementById(fileInputId);
-        const urlInput = document.getElementById(targetUrlInputId);
-        const previewImg = document.getElementById(previewImgId);
-        const previewContainer = document.getElementById(previewContainerId);
-        const token = localStorage.getItem('oma_access_token');
-        
+        const fileInput     = document.getElementById(fileInputId);
+        const urlInput      = document.getElementById(targetUrlInputId);
+        const previewImg    = document.getElementById(previewImgId);
+        const previewCont   = document.getElementById(previewContainerId);
+
         if (!fileInput.files.length) return;
-        
         const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append('image', file);
-        
+
+        // Inline status element next to the file input
+        let statusEl = fileInput.parentElement.querySelector('.upload-inline-status');
+        if (!statusEl) {
+            statusEl = document.createElement('span');
+            statusEl.className = 'upload-inline-status';
+            statusEl.style.cssText = 'font-size:0.8rem; color:var(--accent-gold); display:inline-block; margin-top:0.3rem;';
+            fileInput.parentElement.appendChild(statusEl);
+        }
+
+        fileInput.disabled = true;
+        statusEl.textContent = 'Compression...';
+
         try {
-            const res = await fetch('/api/v1/upload-image/', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+            const secureUrl = await uploadToStorage(file, (pct) => {
+                statusEl.textContent = `Téléversement ${pct}%`;
             });
-            if (res.ok) {
-                const data = await res.json();
-                urlInput.value = data.url;
-                previewImg.src = data.url;
-                previewContainer.style.display = 'block';
-            } else {
-                const errData = await res.json().catch(() => ({error: 'Network error'}));
-                console.error("Upload failed for file", file.name, errData);
-                alert('Échec du téléversement: ' + (errData.error || errData.detail || 'Erreur Inconnue'));
-            }
+
+            urlInput.value          = secureUrl;
+            previewImg.src          = secureUrl;
+            previewCont.style.display = 'block';
+            statusEl.style.color    = 'var(--accent-gold)';
+            statusEl.textContent    = '✓ Téléversé';
+            setTimeout(() => { statusEl.textContent = ''; }, 3000);
+
         } catch (err) {
-            console.error(err);
-            alert('Erreur lors du téléversement: ' + err.message);
+            console.error('[uploadCollectionFile]', err);
+            statusEl.style.color = '#ff4d4d';
+            statusEl.textContent = 'Erreur: ' + err.message;
+        } finally {
+            fileInput.disabled = false;
         }
     }
 

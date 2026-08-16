@@ -283,32 +283,22 @@
 
     {% include 'dashboard/notifications.html' %}
     <script>
-        // ── Cloudinary direct-upload config ──────────────────────────────────
-        // Fetched once and cached. Shared by all upload helpers on this page.
-        let _cloudinaryConfig = null;
-        async function getCloudinaryConfig() {
-            if (_cloudinaryConfig) return _cloudinaryConfig;
-            try {
-                const r = await fetch('/api/v1/upload-image/', {
-                    headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
-                });
-                _cloudinaryConfig = await r.json();
-            } catch(e) {
-                _cloudinaryConfig = {};
-            }
-            return _cloudinaryConfig;
-        }
+        // ── Image upload helpers (Cloudflare R2 presigned PUT) ────────────────
+        //
+        // Flow: compress client-side → request presigned URL → PUT to R2 directly
+        // Browser never sends image bytes through Django/Render.
+        // Falls back to uploadViaServer when R2 is not configured (dev/local).
 
         /**
-         * Compress an image File using Canvas before uploading.
-         * Returns a Blob at max 1200px width, quality 0.85 JPEG.
+         * Resize + compress an image File using Canvas.
+         * Returns a Blob (JPEG, max 1200px wide, quality 0.85).
          */
         async function compressImage(file, maxWidth = 1200, quality = 0.85) {
             return new Promise((resolve) => {
                 const img = new Image();
-                const url = URL.createObjectURL(file);
+                const objectUrl = URL.createObjectURL(file);
                 img.onload = () => {
-                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(objectUrl);
                     let { width, height } = img;
                     if (width > maxWidth) {
                         height = Math.round((height * maxWidth) / width);
@@ -320,63 +310,101 @@
                     canvas.getContext('2d').drawImage(img, 0, 0, width, height);
                     canvas.toBlob(resolve, 'image/jpeg', quality);
                 };
-                img.onerror = () => resolve(file); // fallback: use original
-                img.src = url;
+                img.onerror = () => resolve(file); // fallback: upload as-is
+                img.src = objectUrl;
             });
         }
 
         /**
-         * Upload a File directly from the browser to Cloudinary using XHR
-         * so we can report progress without going through Django.
+         * Upload a File to Cloudflare R2 via a server-issued presigned PUT URL.
          *
-         * @param {File} file           - The File/Blob to upload
-         * @param {Function} onProgress - Called with (percent 0-100)
-         * @returns {Promise<string>}   - Resolves to the secure_url string
+         * Steps:
+         *  1. Compress to max 1200px JPEG (client-side, zero server load)
+         *  2. POST {filename, content_type, size_bytes} to /api/v1/r2-presign/
+         *     → backend validates and returns {upload_url, public_url, key}
+         *  3. PUT compressed blob directly to R2 with XHR (real progress events)
+         *  4. Resolve with public_url — the permanent URL to save in the database
+         *
+         * @param {File}     file       - The File/Blob selected by the user
+         * @param {Function} onProgress - Callback with (percent: 0-100)
+         * @returns {Promise<string>}   - Resolves to the permanent public image URL
          */
-        async function uploadToCloudinary(file, onProgress) {
-            const cfg = await getCloudinaryConfig();
-            const cloudName = cfg.cloud_name;
-            if (!cloudName || cloudName === 'demo') {
-                // Fallback: send through Django server (development mode)
-                return uploadViaServer(file, onProgress);
-            }
-
-            // Client-side compress first
+        async function uploadToStorage(file, onProgress) {
+            // ── Step 1: client-side compression ──
+            if (onProgress) onProgress(0);
             const compressed = await compressImage(file);
 
-            const fd = new FormData();
-            fd.append('file', compressed, file.name);
-            fd.append('upload_preset', 'old_money_algeria');
-            fd.append('folder', 'old_money_algeria');
+            // ── Step 2: request presigned URL ──
+            let presignData;
+            try {
+                const presignRes = await fetch('/api/v1/r2-presign/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}`
+                    },
+                    body: JSON.stringify({
+                        filename:     file.name,
+                        content_type: 'image/jpeg',
+                        size_bytes:   compressed.size
+                    })
+                });
 
+                if (presignRes.status === 503) {
+                    // R2 not configured on this server — use legacy path
+                    console.warn('[upload] R2 not configured, falling back to server upload');
+                    return uploadViaServer(compressed, onProgress);
+                }
+                if (presignRes.status === 401) {
+                    throw new Error('Session expired — please log in again');
+                }
+                if (!presignRes.ok) {
+                    const err = await presignRes.json().catch(() => ({}));
+                    throw new Error(err.error || `Presign failed (${presignRes.status})`);
+                }
+                presignData = await presignRes.json();
+            } catch (err) {
+                // Network error (server unreachable, CORS, etc.) → fall back
+                if (err.message.startsWith('Presign failed') || err.message.startsWith('Session')) throw err;
+                console.warn('[upload] Presign network error, falling back:', err.message);
+                return uploadViaServer(compressed, onProgress);
+            }
+
+            const { upload_url, public_url } = presignData;
+
+            // ── Step 3: PUT blob directly to R2 ──
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true);
+                xhr.open('PUT', upload_url, true);
+                xhr.setRequestHeader('Content-Type', 'image/jpeg');
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable && onProgress) {
                         onProgress(Math.round((e.loaded / e.total) * 100));
                     }
                 };
-
                 xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        const data = JSON.parse(xhr.responseText);
-                        resolve(data.secure_url);
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(public_url);
                     } else {
-                        reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
+                        reject(new Error(`R2 upload failed (HTTP ${xhr.status})`));
                     }
                 };
-                xhr.onerror = () => reject(new Error('Network error during upload'));
-                xhr.send(fd);
+                xhr.onerror = () => reject(new Error('Network error — upload to R2 failed'));
+                xhr.send(compressed);
             });
         }
 
-        /** Fallback: upload through Django /api/v1/upload-image/ (dev/local) */
-        async function uploadViaServer(file, onProgress) {
-            const compressed = await compressImage(file);
+        // Backward-compat alias — products.html and settings.html call this name
+        const uploadToCloudinary = uploadToStorage;
+
+        /**
+         * Legacy fallback: send image through /api/v1/upload-image/ (Cloudinary/local).
+         * Only used in development or when R2 is not configured.
+         */
+        async function uploadViaServer(blob, onProgress) {
             const fd = new FormData();
-            fd.append('image', compressed, file.name);
+            fd.append('image', blob, 'image.jpg');
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', '/api/v1/upload-image/', true);

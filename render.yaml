@@ -1,4 +1,4 @@
-services:
+﻿services:
   - type: web
     name: old-money-algeria-backend
     env: python
@@ -24,7 +24,18 @@ services:
         value: your_api_key
       - key: CLOUDINARY_API_SECRET
         value: your_api_secret
+      - key: R2_ACCOUNT_ID
+        value: your_cloudflare_account_id
+      - key: R2_ACCESS_KEY_ID
+        value: your_r2_access_key_id
+      - key: R2_SECRET_ACCESS_KEY
+        value: your_r2_secret_access_key
+      - key: R2_BUCKET_NAME
+        value: your_r2_bucket_name
+      - key: R2_PUBLIC_URL
+        value: https://pub-xxxx.r2.dev
 
 databases:
   - name: old-money-db
     plan: free
+

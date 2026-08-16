@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet, ImageUploadView
+from core.views import WilayaViewSet, StoreSettingsViewSet, HomepageContentViewSet, AnalyticsAPIView, HomepageSectionViewSet, ImageUploadView, R2PresignedUploadView
 from products.views import ProductViewSet, CollectionViewSet, ReviewViewSet, ProductImageViewSet
 from orders.views import OrderViewSet, CouponViewSet
 from users.views import UserViewSet, CustomerProfileViewSet
@@ -37,8 +37,11 @@ urlpatterns = [
     # Custom Analytics Route
     path('api/v1/analytics/', AnalyticsAPIView.as_view(), name='analytics'),
     
-    # Custom Image Upload Route
+    # Image Upload Routes
+    # Legacy Cloudinary server-side upload (kept for backward compat / development)
     path('api/v1/upload-image/', ImageUploadView.as_view(), name='upload_image'),
+    # R2 presigned URL — browser uploads directly to R2, no bytes through Django
+    path('api/v1/r2-presign/', R2PresignedUploadView.as_view(), name='r2_presign'),
     
     # Auth Routes
     path('api/v1/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

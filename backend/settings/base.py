@@ -140,3 +140,19 @@ SIMPLE_JWT = {
 VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', 'h66OkWP1tJHx4a7aohEQP87UIRRVEWzZuyRkKfkxs7I')
 VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', 'BA_SPAib-DoTzlQWMk4TCUGVb5qbpirq6uejLUE9LG9Ma6mjFQAidaY7y_PImfmwgGYSRzuhPZgqO4FqhZ7diAM')
 VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'mailto:admin@oldmoney.dz')
+
+# ── Cloudflare R2 Storage ─────────────────────────────────────────────────────
+# These are set as environment variables; never hard-code credentials here.
+# R2_ACCOUNT_ID      → Your Cloudflare account ID (from R2 dashboard)
+# R2_ACCESS_KEY_ID   → R2 API token access key (generated in R2 → Manage API tokens)
+# R2_SECRET_ACCESS_KEY → R2 API token secret key
+# R2_BUCKET_NAME     → The R2 bucket name (e.g. "old-money-images")
+# R2_PUBLIC_URL      → Public base URL for the bucket
+#                       Either https://pub-xxx.r2.dev  (Cloudflare public access)
+#                       Or     https://cdn.yourdomain.com  (custom domain)
+R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID', '')
+R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID', '')
+R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY', '')
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', '')
+R2_PUBLIC_URL = os.getenv('R2_PUBLIC_URL', '')
+
