@@ -360,9 +360,9 @@
         percentText.textContent = '0%';
 
         try {
-            const url = await uploadToCloudinary(file, (pct) => {
+            const url = await uploadToCloudinary(file, (pct, statusMsg) => {
                 progressFill.style.width = pct + '%';
-                statusText.textContent = 'Téléversement...';
+                statusText.textContent = statusMsg || 'Téléversement...';
                 percentText.textContent = pct + '%';
             });
 

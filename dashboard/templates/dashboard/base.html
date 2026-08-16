@@ -245,6 +245,7 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -291,12 +292,29 @@
 
         /**
          * Resize + compress an image File using Canvas.
+         * Handles HEIC/HEIF conversion automatically.
          * Returns a Blob (JPEG, max 1200px wide, quality 0.85).
          */
-        async function compressImage(file, maxWidth = 1200, quality = 0.85) {
-            return new Promise((resolve) => {
+        async function compressImage(file, onProgress, maxWidth = 1200, quality = 0.85) {
+            let processFile = file;
+
+            // Handle HEIC/HEIF files from iPhones
+            if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
+                if (onProgress) onProgress(0, 'Conversion HEIC...');
+                try {
+                    const convertedBlob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+                    // heic2any can return an array if multiple frames, grab the first one
+                    processFile = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+                } catch (err) {
+                    console.error("HEIC conversion failed:", err);
+                    throw new Error("Impossible de convertir l'image HEIC. Essayez un autre format.");
+                }
+            }
+
+            if (onProgress) onProgress(0, 'Compression...');
+            return new Promise((resolve, reject) => {
                 const img = new Image();
-                const objectUrl = URL.createObjectURL(file);
+                const objectUrl = URL.createObjectURL(processFile);
                 img.onload = () => {
                     URL.revokeObjectURL(objectUrl);
                     let { width, height } = img;
@@ -308,9 +326,16 @@
                     canvas.width = width;
                     canvas.height = height;
                     canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                    canvas.toBlob(resolve, 'image/jpeg', quality);
+                    canvas.toBlob((blob) => {
+                        if (blob) resolve(blob);
+                        else reject(new Error("Compression a échoué"));
+                    }, 'image/jpeg', quality);
                 };
-                img.onerror = () => resolve(file); // fallback: upload as-is
+                img.onerror = () => {
+                    URL.revokeObjectURL(objectUrl);
+                    // If even standard image load fails, reject rather than uploading garbage
+                    reject(new Error("Fichier image invalide ou corrompu."));
+                };
                 img.src = objectUrl;
             });
         }
@@ -318,23 +343,20 @@
         /**
          * Upload a File to Cloudflare R2 via a server-issued presigned PUT URL.
          *
-         * Steps:
-         *  1. Compress to max 1200px JPEG (client-side, zero server load)
-         *  2. POST {filename, content_type, size_bytes} to /api/v1/r2-presign/
-         *     → backend validates and returns {upload_url, public_url, key}
-         *  3. PUT compressed blob directly to R2 with XHR (real progress events)
-         *  4. Resolve with public_url — the permanent URL to save in the database
-         *
          * @param {File}     file       - The File/Blob selected by the user
-         * @param {Function} onProgress - Callback with (percent: 0-100)
+         * @param {Function} onProgress - Callback with (percent: 0-100, statusMsg: string)
          * @returns {Promise<string>}   - Resolves to the permanent public image URL
          */
         async function uploadToStorage(file, onProgress) {
+            const t0 = performance.now();
+            
             // ── Step 1: client-side compression ──
-            if (onProgress) onProgress(0);
-            const compressed = await compressImage(file);
+            const compressed = await compressImage(file, onProgress);
+            const t1 = performance.now();
+            console.log(`[upload] Compression/Conversion took: ${((t1 - t0) / 1000).toFixed(2)}s`);
 
             // ── Step 2: request presigned URL ──
+            if (onProgress) onProgress(0, 'Préparation...');
             let presignData;
             try {
                 const presignRes = await fetch('/api/v1/r2-presign/', {
@@ -371,8 +393,11 @@
             }
 
             const { upload_url, public_url } = presignData;
+            const t2 = performance.now();
+            console.log(`[upload] Presign fetch took: ${((t2 - t1) / 1000).toFixed(2)}s`);
 
             // ── Step 3: PUT blob directly to R2 ──
+            if (onProgress) onProgress(1, 'Téléversement...');
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', upload_url, true);
@@ -380,10 +405,14 @@
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable && onProgress) {
-                        onProgress(Math.round((e.loaded / e.total) * 100));
+                        onProgress(Math.max(1, Math.round((e.loaded / e.total) * 100)), 'Téléversement...');
                     }
                 };
                 xhr.onload = () => {
+                    const t3 = performance.now();
+                    console.log(`[upload] PUT to R2 took: ${((t3 - t2) / 1000).toFixed(2)}s`);
+                    console.log(`[upload] Total time: ${((t3 - t0) / 1000).toFixed(2)}s`);
+                    
                     if (xhr.status >= 200 && xhr.status < 300) {
                         resolve(public_url);
                     } else {

@@ -531,8 +531,12 @@
         statusEl.textContent = 'Compression...';
 
         try {
-            const secureUrl = await uploadToCloudinary(file, (pct) => {
-                statusEl.textContent = `Téléversement ${pct}%`;
+            const secureUrl = await uploadToCloudinary(file, (pct, statusMsg) => {
+                if (statusMsg && !statusMsg.includes('Téléversement')) {
+                    statusEl.textContent = statusMsg;
+                } else {
+                    statusEl.textContent = `Téléversement ${pct}%`;
+                }
             });
             urlInput.value = secureUrl;
             previewImg.src = secureUrl;

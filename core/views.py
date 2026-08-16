@@ -179,6 +179,37 @@ class ImageUploadView(views.APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+_r2_client = None
+def get_r2_client():
+    global _r2_client
+    if _r2_client is not None:
+        return _r2_client
+    import os as _os
+    import boto3
+    from botocore.config import Config as BotocoreConfig
+    from django.conf import settings as dj_settings
+    
+    def _cfg(key):
+        return _os.getenv(key, '') or getattr(dj_settings, key, '')
+        
+    account_id = _cfg('R2_ACCOUNT_ID')
+    access_key = _cfg('R2_ACCESS_KEY_ID')
+    secret_key = _cfg('R2_SECRET_ACCESS_KEY')
+    
+    if not all([account_id, access_key, secret_key]):
+        return None
+        
+    _r2_client = boto3.client(
+        's3',
+        endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        config=BotocoreConfig(signature_version='s3v4'),
+        region_name='auto',
+    )
+    return _r2_client
+
+
 class R2PresignedUploadView(views.APIView):
     """
     Return a presigned PUT URL so the browser can upload an image directly to
@@ -202,9 +233,10 @@ class R2PresignedUploadView(views.APIView):
     def post(self, request):
         import uuid as _uuid
         import os as _os
-        import boto3
-        from botocore.config import Config as BotocoreConfig
+        import time
         from django.conf import settings as dj_settings
+        
+        t0 = time.time()
 
         filename     = request.data.get('filename', 'image.jpg')
         content_type = request.data.get('content_type', 'image/jpeg')
@@ -224,17 +256,14 @@ class R2PresignedUploadView(views.APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Read R2 credentials from env (preferred) or Django settings
         def _cfg(key):
             return _os.getenv(key, '') or getattr(dj_settings, key, '')
 
-        account_id = _cfg('R2_ACCOUNT_ID')
-        access_key = _cfg('R2_ACCESS_KEY_ID')
-        secret_key = _cfg('R2_SECRET_ACCESS_KEY')
-        bucket     = _cfg('R2_BUCKET_NAME')
-        pub_base   = _cfg('R2_PUBLIC_URL')
+        bucket   = _cfg('R2_BUCKET_NAME')
+        pub_base = _cfg('R2_PUBLIC_URL')
 
-        if not all([account_id, access_key, secret_key, bucket]):
+        r2 = get_r2_client()
+        if not r2 or not bucket:
             # Not configured — browser will fall back to legacy upload path
             return Response(
                 {'error': 'R2 storage is not configured on this server.'},
@@ -252,14 +281,6 @@ class R2PresignedUploadView(views.APIView):
         key = f"products/{_uuid.uuid4().hex}{ext}"
 
         try:
-            r2 = boto3.client(
-                's3',
-                endpoint_url=f'https://{account_id}.r2.cloudflarestorage.com',
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                config=BotocoreConfig(signature_version='s3v4'),
-                region_name='auto',
-            )
             upload_url = r2.generate_presigned_url(
                 'put_object',
                 Params={

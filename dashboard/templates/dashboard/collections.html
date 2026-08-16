@@ -195,8 +195,12 @@
         statusEl.textContent = 'Compression...';
 
         try {
-            const secureUrl = await uploadToStorage(file, (pct) => {
-                statusEl.textContent = `Téléversement ${pct}%`;
+            const secureUrl = await uploadToStorage(file, (pct, statusMsg) => {
+                if (statusMsg && !statusMsg.includes('Téléversement')) {
+                    statusEl.textContent = statusMsg;
+                } else {
+                    statusEl.textContent = `Téléversement ${pct}%`;
+                }
             });
 
             urlInput.value          = secureUrl;
