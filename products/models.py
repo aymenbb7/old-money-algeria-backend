@@ -42,7 +42,7 @@ class Product(models.Model):
     
     weight = models.DecimalField(max_digits=6, decimal_places=2, default=0.00, help_text="Weight in kg")
     
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT', db_index=True)
     
     is_featured = models.BooleanField(default=False)
     is_bestseller = models.BooleanField(default=False)
@@ -65,7 +65,7 @@ class Product(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
     image_url = models.URLField(max_length=1000, blank=True, null=True)
-    is_main = models.BooleanField(default=False)
+    is_main = models.BooleanField(default=False, db_index=True)
     is_hover = models.BooleanField(default=False)
     
     # Used if WebP generated path is stored

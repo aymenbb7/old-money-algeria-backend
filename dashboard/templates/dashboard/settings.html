@@ -516,33 +516,33 @@
         const fileInput = document.getElementById(fileInputId);
         const urlInput = document.getElementById(targetUrlInputId);
         const previewImg = document.getElementById(previewImgId);
-        const token = localStorage.getItem('oma_access_token');
-        
+
         if (!fileInput.files.length) return;
-        
         const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append('image', file);
-        
+
+        // Show a simple inline status next to the file input
+        let statusEl = fileInput.parentElement.querySelector('.upload-inline-status');
+        if (!statusEl) {
+            statusEl = document.createElement('span');
+            statusEl.className = 'upload-inline-status';
+            statusEl.style.cssText = 'font-size:0.8rem; color:var(--accent-gold); margin-left:0.5rem;';
+            fileInput.parentElement.appendChild(statusEl);
+        }
+        statusEl.textContent = 'Compression...';
+
         try {
-            const res = await fetch('/api/v1/upload-image/', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+            const secureUrl = await uploadToCloudinary(file, (pct) => {
+                statusEl.textContent = `Téléversement ${pct}%`;
             });
-            if (res.ok) {
-                const data = await res.json();
-                urlInput.value = data.url;
-                previewImg.src = data.url;
-                previewImg.style.display = 'block';
-            } else {
-                const errData = await res.json().catch(() => ({error: 'Network error'}));
-                console.error("Upload failed for file", file.name, errData);
-                alert('Échec du téléversement: ' + (errData.error || errData.detail || 'Erreur Inconnue'));
-            }
+            urlInput.value = secureUrl;
+            previewImg.src = secureUrl;
+            previewImg.style.display = 'block';
+            statusEl.textContent = '✓ Téléversé';
+            setTimeout(() => { statusEl.textContent = ''; }, 3000);
         } catch (err) {
             console.error(err);
-            alert('Erreur lors du téléversement: ' + err.message);
+            statusEl.style.color = '#ff4d4d';
+            statusEl.textContent = 'Erreur: ' + err.message;
         }
     }
 

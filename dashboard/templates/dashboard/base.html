@@ -9,9 +9,11 @@
     <meta name="apple-mobile-web-app-title" content="OMA Admin">
     <link rel="apple-touch-icon" href="/static/dashboard/images/icon-192.png">
     <link rel="manifest" href="/static/dashboard/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://res.cloudinary.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
     <style>
         :root {
             --bg-color: #0A0A0A;
@@ -280,6 +282,120 @@
     </main>
 
     {% include 'dashboard/notifications.html' %}
+    <script>
+        // ── Cloudinary direct-upload config ──────────────────────────────────
+        // Fetched once and cached. Shared by all upload helpers on this page.
+        let _cloudinaryConfig = null;
+        async function getCloudinaryConfig() {
+            if (_cloudinaryConfig) return _cloudinaryConfig;
+            try {
+                const r = await fetch('/api/v1/upload-image/', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('oma_access_token')}` }
+                });
+                _cloudinaryConfig = await r.json();
+            } catch(e) {
+                _cloudinaryConfig = {};
+            }
+            return _cloudinaryConfig;
+        }
+
+        /**
+         * Compress an image File using Canvas before uploading.
+         * Returns a Blob at max 1200px width, quality 0.85 JPEG.
+         */
+        async function compressImage(file, maxWidth = 1200, quality = 0.85) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    let { width, height } = img;
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                    canvas.toBlob(resolve, 'image/jpeg', quality);
+                };
+                img.onerror = () => resolve(file); // fallback: use original
+                img.src = url;
+            });
+        }
+
+        /**
+         * Upload a File directly from the browser to Cloudinary using XHR
+         * so we can report progress without going through Django.
+         *
+         * @param {File} file           - The File/Blob to upload
+         * @param {Function} onProgress - Called with (percent 0-100)
+         * @returns {Promise<string>}   - Resolves to the secure_url string
+         */
+        async function uploadToCloudinary(file, onProgress) {
+            const cfg = await getCloudinaryConfig();
+            const cloudName = cfg.cloud_name;
+            if (!cloudName || cloudName === 'demo') {
+                // Fallback: send through Django server (development mode)
+                return uploadViaServer(file, onProgress);
+            }
+
+            // Client-side compress first
+            const compressed = await compressImage(file);
+
+            const fd = new FormData();
+            fd.append('file', compressed, file.name);
+            fd.append('upload_preset', 'old_money_algeria');
+            fd.append('folder', 'old_money_algeria');
+
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, true);
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable && onProgress) {
+                        onProgress(Math.round((e.loaded / e.total) * 100));
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        resolve(data.secure_url);
+                    } else {
+                        reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error during upload'));
+                xhr.send(fd);
+            });
+        }
+
+        /** Fallback: upload through Django /api/v1/upload-image/ (dev/local) */
+        async function uploadViaServer(file, onProgress) {
+            const compressed = await compressImage(file);
+            const fd = new FormData();
+            fd.append('image', compressed, file.name);
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/api/v1/upload-image/', true);
+                xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('oma_access_token')}`);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(JSON.parse(xhr.responseText).url);
+                    } else {
+                        reject(new Error('Server upload failed'));
+                    }
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(fd);
+            });
+        }
+    </script>
     <script>
         // Check Auth
         const token = localStorage.getItem('oma_access_token');

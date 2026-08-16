@@ -11,6 +11,32 @@
     .variant-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
     .img-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
     @media (max-width: 768px) { .img-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    /* Upload progress bar */
+    .upload-progress-wrap {
+        display: none;
+        margin-bottom: 0.5rem;
+    }
+    .upload-progress-bar-bg {
+        height: 6px;
+        background: #222;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 4px;
+    }
+    .upload-progress-bar-fill {
+        height: 100%;
+        background: var(--accent-gold);
+        border-radius: 3px;
+        transition: width 0.15s ease;
+        width: 0%;
+    }
+    .upload-status-text {
+        font-size: 0.8rem;
+        color: var(--accent-gold);
+        display: flex;
+        justify-content: space-between;
+    }
 </style>
 
 <div class="dashboard-header" style="margin-bottom: 2rem;">
@@ -146,8 +172,17 @@
 
                 <div id="tabUpload" style="display: none;">
                     <input type="file" id="newImageFile" class="form-control" accept="image/*" style="margin-bottom: 0.5rem;">
-                    <div id="uploadStatus" style="color: var(--accent-gold); font-size: 0.8rem; margin-bottom: 0.5rem; display: none;"></div>
-                    <button type="button" class="btn-gold" onclick="uploadNewImage()">Téléverser</button>
+                    <div class="upload-progress-wrap" id="uploadProgressWrap">
+                        <div class="upload-status-text">
+                            <span id="uploadStatusText">Compression...</span>
+                            <span id="uploadPercent">0%</span>
+                        </div>
+                        <div class="upload-progress-bar-bg">
+                            <div class="upload-progress-bar-fill" id="uploadProgressFill"></div>
+                        </div>
+                    </div>
+                    <div id="uploadStatusMsg" style="font-size: 0.8rem; margin-bottom: 0.5rem; display: none;"></div>
+                    <button type="button" class="btn-gold" id="uploadBtn" onclick="uploadNewImage()">Téléverser</button>
                 </div>
             </div>
 
@@ -305,35 +340,51 @@
 
     async function uploadNewImage() {
         const fileInput = document.getElementById('newImageFile');
-        const statusDiv = document.getElementById('uploadStatus');
-        const token = localStorage.getItem('oma_access_token');
-        
+        const progressWrap = document.getElementById('uploadProgressWrap');
+        const progressFill = document.getElementById('uploadProgressFill');
+        const statusText = document.getElementById('uploadStatusText');
+        const percentText = document.getElementById('uploadPercent');
+        const statusMsg = document.getElementById('uploadStatusMsg');
+        const uploadBtn = document.getElementById('uploadBtn');
+
         if (!fileInput.files.length) return;
-        
         const file = fileInput.files[0];
-        statusDiv.style.display = 'block';
-        statusDiv.innerText = `Téléversement en cours...`;
-        
-        const formData = new FormData();
-        formData.append('image', file);
-        
+
+        // Show progress UI, disable button
+        progressWrap.style.display = 'block';
+        statusMsg.style.display = 'none';
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'En cours...';
+        progressFill.style.width = '0%';
+        statusText.textContent = 'Compression...';
+        percentText.textContent = '0%';
+
         try {
-            const res = await fetch('/api/v1/upload-image/', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-                body: formData
+            const url = await uploadToCloudinary(file, (pct) => {
+                progressFill.style.width = pct + '%';
+                statusText.textContent = 'Téléversement...';
+                percentText.textContent = pct + '%';
             });
-            if (res.ok) {
-                const data = await res.json();
-                statusDiv.innerText = `Succès!`;
-                setTimeout(() => { statusDiv.style.display = 'none'; }, 2000);
-                await saveNewImage(data.url);
-                fileInput.value = '';
-            } else {
-                statusDiv.innerHTML = `<span style="color:red">Erreur serveur</span>`;
-            }
+
+            progressFill.style.width = '100%';
+            statusText.textContent = 'Terminé ✓';
+            percentText.textContent = '100%';
+
+            await saveNewImage(url);
+            fileInput.value = '';
+
+            setTimeout(() => {
+                progressWrap.style.display = 'none';
+                progressFill.style.width = '0%';
+            }, 1500);
+
         } catch (err) {
-            statusDiv.innerHTML = `<span style="color:red">Erreur réseau</span>`;
+            progressWrap.style.display = 'none';
+            statusMsg.style.display = 'block';
+            statusMsg.innerHTML = `<span style="color:#ff4d4d">Erreur: ${err.message}</span>`;
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Téléverser';
         }
     }
 

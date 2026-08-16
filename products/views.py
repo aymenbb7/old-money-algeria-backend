@@ -11,7 +11,9 @@ from .serializers import (
 from rest_framework.decorators import action
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related('images', 'variants', 'collections')
+    queryset = Product.objects.all().prefetch_related(
+        'images', 'variants', 'collections'
+    ).order_by('-created_at')
     lookup_field = 'slug'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'is_featured', 'is_bestseller', 'is_new_arrival', 'collections__slug']
